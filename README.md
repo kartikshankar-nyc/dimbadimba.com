@@ -1,6 +1,7 @@
 # Pixel Runner
 
-A fast-paced endless runner game built with vanilla JavaScript and HTML5 Canvas.
+http://dimbadimba.com/ <br>
+A fast-paced endless runner game built with vanilla JavaScript and HTML5 Canvas. 
 
 ## Game Description
 
@@ -61,6 +62,13 @@ A browser-based pixel runner game with day/night modes, parallax backgrounds, an
 - Obstacle variety with different shapes and sizes
 - Mobile support with touch controls
 - Progressive Web App (PWA) compatibility
+- Endless runner gameplay with dimbadimba character
+- Obstacle avoidance and coin collection
+- Responsive design for all screen sizes 
+<img width="1425" src="https://github.com/user-attachments/assets/4364664e-7f59-458b-b50d-793c4f0c6baf" />
+<img width="1425" alt="Description" src="https://github.com/user-attachments/assets/d8aaaa23-d838-43c3-b10e-6196fd9783e7" />
+
+
 
 ## Development
 
@@ -126,51 +134,6 @@ Before making changes to the codebase, always run the tests to ensure everything
 - Press P to pause the game
 - Avoid obstacles and collect coins to increase your score
 
-## License
-
-ISC
-
-## Deployment Guide
-
-### Option 1: GitHub Pages (Free and Easy)
-
-1. Create a GitHub account if you don't have one
-2. Create a new repository named `dimbadimba.com`
-3. Upload all game files (index.html, style.css, script.js) to the repository
-4. Go to repository Settings → Pages
-5. Enable GitHub Pages and select the main branch as source
-6. GitHub will provide a URL like `yourusername.github.io/dimbadimba.com`
-
-#### Connecting Your Domain:
-1. In your GitHub repository, go to Settings → Pages
-2. Under "Custom domain," enter `dimbadimba.com` and save
-3. Go to your Porkbun domain dashboard
-4. Add these DNS records:
-   - Type: A, Host: @, Value: 185.199.108.153
-   - Type: A, Host: @, Value: 185.199.109.153
-   - Type: A, Host: @, Value: 185.199.110.153
-   - Type: A, Host: @, Value: 185.199.111.153
-   - Type: CNAME, Host: www, Value: yourusername.github.io.
-5. Wait for DNS propagation (up to 24 hours)
-
-### Option 2: Netlify (Free and Easy)
-
-1. Create a Netlify account
-2. Click "New site from Git" or drag-and-drop your folder with game files
-3. Configure build settings (not needed for this static site)
-4. Deploy your site
-
-#### Connecting Your Domain:
-1. In Netlify dashboard, go to your site → Domain settings → Add custom domain
-2. Enter `dimbadimba.com`
-3. Verify domain ownership by adding DNS records provided by Netlify to Porkbun
-4. Or change your domain's nameservers to Netlify's nameservers
-
-### Option 3: Traditional Web Hosting
-
-1. Sign up for a web hosting service (Bluehost, HostGator, etc.)
-2. Set up your hosting account and connect your domain
-3. Upload game files via FTP or web interface to the public_html folder
 
 ## Local Development
 
@@ -184,10 +147,4 @@ ISC
 - `style.css` - Game styling and responsive design
 - `script.js` - Game logic and mechanics
 
-## Game Features
 
-- Endless runner gameplay with dimbadimba character
-- Day and night visual modes
-- Obstacle avoidance and coin collection
-- Mobile-friendly with touch controls
-- Responsive design for all screen sizes 

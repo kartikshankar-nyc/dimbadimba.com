@@ -46,7 +46,8 @@ let gameState = {
         maxFrames: 8,
         frameTimer: 0,
         frameInterval: 100,
-    }
+    },
+    firstObstacleSpawned: false // Track if the first obstacle has spawned
 };
 
 // UI elements
@@ -1492,6 +1493,7 @@ function resetGame() {
     gameState.timeSinceLastObstacle = 0;
     gameState.timeSinceLastCoin = 0;
     gameState.paused = false;
+    gameState.firstObstacleSpawned = false; // Reset first obstacle flag
     
     // Stop background music when resetting
     sounds.backgroundMusic.stop();
@@ -1538,38 +1540,17 @@ function updatePlayer(deltaTime) {
 function updateObstacles(deltaTime) {
     // Generate new obstacle
     gameState.timeSinceLastObstacle += deltaTime;
-    if (gameState.timeSinceLastObstacle > gameState.obstacleInterval) {
-        gameState.timeSinceLastObstacle = 0;
+    
+    // If it's the first obstacle, spawn it earlier and at a fixed position
+    if (!gameState.firstObstacleSpawned && gameState.timeSinceLastObstacle > 800) {
+        spawnObstacle();
+        gameState.firstObstacleSpawned = true;
         gameState.obstacleInterval = Math.random() * 1500 + 1000 / (gameState.speed * 0.2);
-        
-        // Randomize obstacle shape
-        const shapeIndex = Math.floor(Math.random() * sprites.obstacles.length);
-        
-        // Vary the height based on shape (some shapes look better shorter or taller)
-        const baseHeight = OBSTACLE_MIN_HEIGHT + Math.random() * (OBSTACLE_MAX_HEIGHT - OBSTACLE_MIN_HEIGHT);
-        
-        // Adjust dimensions based on shape index
-        let width = OBSTACLE_WIDTH;
-        let height = baseHeight;
-        
-        // Adjust dimensions for different shapes
-        if (shapeIndex === 1) { // Rock - wider, shorter
-            width = OBSTACLE_WIDTH * 1.2;
-            height = baseHeight * 0.8;
-        } else if (shapeIndex === 2) { // Spiky - shorter
-            height = baseHeight * 0.7;
-        } else if (shapeIndex === 3) { // Log - longer
-            width = OBSTACLE_WIDTH * 0.8;
-            height = baseHeight * 1.4;
-        }
-        
-        gameState.obstacles.push({
-            x: GAME_WIDTH,
-            y: GAME_HEIGHT - GROUND_HEIGHT - height,
-            width: width,
-            height: height,
-            shapeIndex: shapeIndex
-        });
+    } 
+    // Regular obstacle spawning for subsequent obstacles
+    else if (gameState.firstObstacleSpawned && gameState.timeSinceLastObstacle > gameState.obstacleInterval) {
+        spawnObstacle();
+        gameState.obstacleInterval = Math.random() * 1500 + 1000 / (gameState.speed * 0.2);
     }
     
     // Update obstacle positions
@@ -1584,6 +1565,40 @@ function updateObstacles(deltaTime) {
             updateScore();
         }
     }
+}
+
+// Helper function to spawn an obstacle
+function spawnObstacle() {
+    gameState.timeSinceLastObstacle = 0;
+    
+    // Randomize obstacle shape
+    const shapeIndex = Math.floor(Math.random() * sprites.obstacles.length);
+    
+    // Vary the height based on shape (some shapes look better shorter or taller)
+    const baseHeight = OBSTACLE_MIN_HEIGHT + Math.random() * (OBSTACLE_MAX_HEIGHT - OBSTACLE_MIN_HEIGHT);
+    
+    // Adjust dimensions based on shape index
+    let width = OBSTACLE_WIDTH;
+    let height = baseHeight;
+    
+    // Adjust dimensions for different shapes
+    if (shapeIndex === 1) { // Rock - wider, shorter
+        width = OBSTACLE_WIDTH * 1.2;
+        height = baseHeight * 0.8;
+    } else if (shapeIndex === 2) { // Spiky - shorter
+        height = baseHeight * 0.7;
+    } else if (shapeIndex === 3) { // Log - longer
+        width = OBSTACLE_WIDTH * 0.8;
+        height = baseHeight * 1.4;
+    }
+    
+    gameState.obstacles.push({
+        x: GAME_WIDTH,
+        y: GAME_HEIGHT - GROUND_HEIGHT - height,
+        width: width,
+        height: height,
+        shapeIndex: shapeIndex
+    });
 }
 
 function updateCoins(deltaTime) {
