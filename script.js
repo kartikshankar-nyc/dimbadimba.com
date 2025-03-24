@@ -1886,18 +1886,67 @@ function handleDeviceOrientation() {
     adjustGameHeight();
 }
 
+// Create and manage orientation message
 function createOrientationMessage() {
-    const msg = document.createElement('div');
-    msg.id = 'orientation-message';
-    msg.className = 'overlay recommendation';
-    msg.innerHTML = `
-        <div class="orientation-content">
-            <div class="rotate-icon">⟳</div>
-            <p>For the best experience, please rotate your device to landscape mode.</p>
-        </div>
-    `;
-    document.body.appendChild(msg);
-    return msg;
+    // Check if we already have an orientation message
+    let message = document.getElementById('orientation-message');
+    
+    if (!message) {
+        message = document.createElement('div');
+        message.id = 'orientation-message';
+        message.classList.add('hidden');
+        
+        const content = document.createElement('div');
+        content.className = 'orientation-content';
+        
+        const icon = document.createElement('div');
+        icon.className = 'rotate-icon';
+        icon.innerHTML = '📱';
+        
+        const text = document.createElement('p');
+        text.textContent = 'For the best experience, please rotate your device to landscape mode.';
+        
+        const dismissBtn = document.createElement('button');
+        dismissBtn.id = 'dismiss-orientation';
+        dismissBtn.textContent = 'Continue in Portrait';
+        
+        // Store dismissal in localStorage
+        dismissBtn.addEventListener('click', () => {
+            message.classList.add('hidden');
+            localStorage.setItem('orientationDismissed', 'true');
+        });
+        
+        content.appendChild(icon);
+        content.appendChild(text);
+        content.appendChild(dismissBtn);
+        message.appendChild(content);
+        
+        document.querySelector('.game-container').appendChild(message);
+    }
+    
+    return message;
+}
+
+// Handle device orientation changes
+function handleDeviceOrientation() {
+    const orientationMessage = document.getElementById('orientation-message');
+    if (!orientationMessage) return;
+    
+    // If the user has dismissed the message, don't show it again
+    if (localStorage.getItem('orientationDismissed') === 'true') {
+        orientationMessage.classList.add('hidden');
+        return;
+    }
+    
+    const isPortrait = window.innerWidth < window.innerHeight;
+    
+    if (isPortrait) {
+        // Portrait mode - show message
+        orientationMessage.classList.remove('hidden');
+    } else {
+        // Landscape mode - hide message
+        orientationMessage.classList.add('hidden');
+    }
 }
 
 function adjustGameHeight() {

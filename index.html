@@ -113,6 +113,16 @@
                 });
             }
             
+            // Create orientation message
+            createOrientationMessage();
+            
+            // Check orientation initially
+            handleDeviceOrientation();
+            
+            // Listen for orientation changes
+            window.addEventListener('orientationchange', handleDeviceOrientation);
+            window.addEventListener('resize', handleDeviceOrientation);
+            
             // Try to scroll to hide URL bar on page load
             window.addEventListener('load', function() {
                 // Timeout needed for iOS

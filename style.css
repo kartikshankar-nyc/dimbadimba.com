@@ -347,44 +347,60 @@ h2 {
     background-color: rgba(249, 87, 56, 0.7);
 }
 
-/* Orientation message with less intrusive styling */
-#orientation-message.recommendation {
-    background-color: rgba(0, 0, 0, 0.7);
-    z-index: 50;
-    position: absolute;
+/* Orientation message styles */
+#orientation-message {
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: auto;
-    min-height: 120px;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.85);
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 10px;
-    box-sizing: border-box;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+    opacity: 1;
+}
+
+#orientation-message.hidden {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
 }
 
 .orientation-content {
-    padding: 15px;
+    background-color: #2c3e50;
+    border-radius: 8px;
+    padding: 30px;
+    max-width: 80%;
     text-align: center;
-    color: white;
-    background-color: rgba(0, 0, 0, 0.8);
-    border-radius: 10px;
-    max-width: 400px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.rotate-icon {
+    font-size: 42px;
+    margin-bottom: 20px;
+    animation: rotate-device 2s infinite ease-in-out;
 }
 
 #dismiss-orientation {
-    margin-top: 15px;
-    padding: 8px 15px;
-    background-color: #f95738;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #3498db;
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: 4px;
     cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
 }
 
 #dismiss-orientation:hover {
-    background-color: #ff7d66;
+    background-color: #2980b9;
 }
 
 /* Improved portrait mode styling for better fit */
@@ -458,20 +474,6 @@ h2 {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-}
-
-.rotate-icon {
-    font-size: 28px;
-    transform: rotate(90deg);
-    margin-bottom: 15px;
-    animation: rotate 2s infinite;
-    display: inline-block;
-}
-
-@keyframes rotate {
-    0% { transform: rotate(90deg); }
-    50% { transform: rotate(0deg); }
-    100% { transform: rotate(90deg); }
 }
 
 /* Fullscreen mode styles */
@@ -707,4 +709,11 @@ html, body {
     height: 100%;
     max-width: 100%;
     max-height: 100%;
+}
+
+@keyframes rotate-device {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(90deg); }
+    75% { transform: rotate(90deg); }
+    100% { transform: rotate(0deg); }
 } 
