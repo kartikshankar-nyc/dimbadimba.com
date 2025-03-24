@@ -250,6 +250,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Draw initial game screen
     drawGame();
+    
+    // Initialize mobile-specific behaviors
+    handleMobileSpecificBehaviors();
+    
+    // Initialize the fullscreen button if available
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    
+    if (fullscreenButton) {
+        // Only show the fullscreen button if fullscreen is available
+        if (isFullscreenAvailable()) {
+            fullscreenButton.style.display = 'flex';
+        } else {
+            fullscreenButton.style.display = 'none';
+        }
+    }
 });
 
 function initializeAudio() {
@@ -1901,5 +1916,124 @@ function adjustGameHeight() {
         if (canvas) {
             canvas.style.height = `${vh - headerHeight}px`;
         }
+    }
+}
+
+// Add fullscreen detection and handling
+function isFullscreenAvailable() {
+    return document.fullscreenEnabled || 
+           document.webkitFullscreenEnabled || 
+           document.mozFullScreenEnabled ||
+           document.msFullscreenEnabled;
+}
+
+function isInFullscreen() {
+    return !!(document.fullscreenElement || 
+              document.mozFullScreenElement ||
+              document.webkitFullscreenElement || 
+              document.msFullscreenElement);
+}
+
+// Handle device-specific behaviors
+function handleMobileSpecificBehaviors() {
+    // Check if this is an iOS device
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    if (isIOS) {
+        // iOS-specific behaviors
+        document.body.addEventListener('touchend', function() {
+            // This trick helps with audio playback on iOS
+            if (gameState && gameState.music && gameState.music.context && 
+                gameState.music.context.state !== 'running') {
+                gameState.music.context.resume();
+            }
+        }, false);
+        
+        // Add a touch handler for the entire screen to ensure audio can start
+        document.body.addEventListener('touchstart', function() {
+            // This ensures the iOS device knows the page is interactive
+        }, false);
+    }
+    
+    // Add to home screen prompt for mobile
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent Chrome 67 and earlier from automatically showing the prompt
+        e.preventDefault();
+        // Stash the event so it can be triggered later
+        deferredPrompt = e;
+        
+        // Show "Add to Home Screen" info
+        if (!localStorage.getItem('pwaPromptDismissed')) {
+            const pwaPrompt = document.createElement('div');
+            pwaPrompt.className = 'pwa-prompt';
+            pwaPrompt.innerHTML = `
+                <div class="pwa-content">
+                    <div class="pwa-message">
+                        <p>Add Dimbadimba to your home screen for the best experience!</p>
+                    </div>
+                    <div class="pwa-buttons">
+                        <button id="pwa-install-btn">Install</button>
+                        <button id="pwa-dismiss-btn">Not Now</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(pwaPrompt);
+            
+            document.getElementById('pwa-install-btn').addEventListener('click', () => {
+                // Hide the prompt
+                pwaPrompt.style.display = 'none';
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    } else {
+                        console.log('User dismissed the install prompt');
+                    }
+                    // Clear the deferred prompt
+                    deferredPrompt = null;
+                });
+            });
+            
+            document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
+                // Hide the prompt
+                pwaPrompt.style.display = 'none';
+                // Remember that the user dismissed the prompt
+                localStorage.setItem('pwaPromptDismissed', 'true');
+            });
+        }
+    });
+    
+    // Handle specific behaviors for desktop browsers
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (!isMobile) {
+        // Add hover effects for desktop, which won't trigger unwanted mobile effects
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(button => {
+            button.classList.add('desktop-hover-enabled');
+        });
+    } else {
+        // Add auto URL bar hiding
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                // Scroll to hide URL bar
+                window.scrollTo(0, 1);
+            }, 100);
+        });
+        
+        // Re-hide URL bar after orientation changes
+        window.addEventListener('orientationchange', function() {
+            setTimeout(function() {
+                window.scrollTo(0, 1);
+            }, 100);
+        });
+        
+        // Add a class to the body to enable mobile-specific CSS
+        document.body.classList.add('is-mobile-device');
     }
 } 

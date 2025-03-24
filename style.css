@@ -472,4 +472,239 @@ h2 {
     0% { transform: rotate(90deg); }
     50% { transform: rotate(0deg); }
     100% { transform: rotate(90deg); }
+}
+
+/* Fullscreen mode styles */
+body.fullscreen-mode {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    position: fixed;
+}
+
+body.fullscreen-mode .game-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    box-sizing: border-box;
+}
+
+#fullscreenButton {
+    width: 40px;
+    height: 40px;
+    font-size: 1.5em;
+    cursor: pointer;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #3498db;
+    border: none;
+    border-radius: 50%;
+    color: white;
+    padding: 0;
+}
+
+.icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    background-color: #3498db;
+    color: white;
+    font-size: 1.5em;
+    margin: 0 5px;
+    transition: background-color 0.2s;
+}
+
+.icon-button:hover {
+    background-color: #2980b9;
+}
+
+/* For iOS notch and home indicator */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-top: env(safe-area-inset-top);
+    }
+}
+
+/* Add fullscreen button to controls */
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+}
+
+/* For standalone mode (PWA) */
+@media all and (display-mode: standalone) {
+    body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+    }
+    
+    .game-container {
+        height: 100%;
+        max-height: none;
+    }
+    
+    #fullscreenButton {
+        display: none; /* Hide when already in PWA mode */
+    }
+}
+
+/* Update mobile controls for better touch */
+@media (max-width: 768px) {
+    .mobile-controls button {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+        margin: 0 10px;
+    }
+    
+    #jumpButton, #pauseButton {
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Prevent double-tap zoom */
+    * {
+        touch-action: manipulation;
+    }
+}
+
+/* Fix issues with notched phones */
+@media screen and (orientation: landscape) {
+    .game-container {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+
+/* PWA Install Prompt Styles */
+.pwa-prompt {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    z-index: 1000;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.pwa-content {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pwa-message {
+    margin-bottom: 10px;
+}
+
+.pwa-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.pwa-buttons button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#pwa-install-btn {
+    background-color: #3498db;
+    color: white;
+}
+
+#pwa-dismiss-btn {
+    background-color: transparent;
+    color: #ccc;
+    border: 1px solid #ccc;
+}
+
+/* Mobile specific improvements */
+.is-mobile-device button {
+    min-height: 44px; /* Better touch target size */
+    min-width: 44px;
+}
+
+.is-mobile-device .mobile-controls {
+    padding: 20px 0;
+}
+
+/* Make more room on small devices */
+@media (max-height: 500px) and (orientation: landscape) {
+    .game-header {
+        padding: 5px;
+    }
+    
+    .mode-selection {
+        margin: 5px auto;
+    }
+    
+    .controls {
+        margin-top: 5px;
+    }
+    
+    body.fullscreen-mode #gameCanvas {
+        max-height: calc(100% - 120px);
+    }
+}
+
+/* Fix overscroll behavior on mobile */
+body {
+    overscroll-behavior: contain;
+}
+
+/* Improve visual indication that the game is in fullscreen mode */
+body.fullscreen-mode:after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 2px #3498db;
+    z-index: 9999;
+    border-radius: 8px;
+    animation: fullscreen-indicator 1s ease-out;
+    opacity: 0;
+}
+
+@keyframes fullscreen-indicator {
+    0% { opacity: 0.8; box-shadow: inset 0 0 0 4px #3498db; }
+    100% { opacity: 0; box-shadow: inset 0 0 0 1px #3498db; }
+}
+
+/* Fix scrolling issues */
+html, body {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
 } 
