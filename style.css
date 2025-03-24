@@ -1,0 +1,475 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+@font-face {
+    font-family: 'PixelFont';
+    src: url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'PixelFont', Arial, sans-serif;
+    background-color: #000;
+    position: fixed;
+}
+
+.game-container {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+
+.game-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: rgba(0, 0, 0, 0.7);
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    box-sizing: border-box;
+}
+
+.game-title {
+    color: #f95738;
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(249, 87, 56, 0.5);
+}
+
+.sound-toggle {
+    background-color: transparent;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+.sound-toggle:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.score-container {
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    gap: 20px;
+}
+
+.score-container div {
+    display: flex;
+    flex-direction: column;
+}
+
+.game-area {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background-color: #000;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 20;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.overlay.hidden {
+    display: none;
+}
+
+.mode-selection {
+    margin: 30px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.mode-selection p {
+    color: white;
+    font-size: 18px;
+    margin-bottom: 15px;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    font-weight: bold;
+}
+
+.mode-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.mode-buttons button {
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: white;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.mode-buttons button:hover {
+    transform: translateY(-3px);
+    border-color: white;
+}
+
+.mode-buttons button.selected {
+    background-color: rgba(249, 87, 56, 0.3);
+    border-color: #f95738;
+    box-shadow: 0 0 10px rgba(249, 87, 56, 0.5);
+}
+
+.mode-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.mode-text {
+    font-size: 14px;
+}
+
+#startButton {
+    margin-top: 30px;
+    margin-bottom: 20px;
+    padding: 12px 30px;
+    background-color: #f95738;
+    color: white;
+    border: 3px solid white;
+    border-radius: 8px;
+    font-family: 'PixelFont', Arial, sans-serif;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#startButton:hover {
+    background-color: #ff7d66;
+    transform: scale(1.05);
+}
+
+#restartButton {
+    margin-top: 20px;
+    padding: 12px 30px;
+    background-color: #f95738;
+    color: white;
+    border: 3px solid white;
+    border-radius: 8px;
+    font-family: 'PixelFont', Arial, sans-serif;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#restartButton:hover {
+    background-color: #ff7d66;
+    transform: scale(1.05);
+}
+
+.game-description {
+    color: white;
+    text-align: left;
+    flex: 1;
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+h1 {
+    color: white;
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    color: white;
+    font-size: 24px;
+    margin: 10px 0;
+}
+
+#finalScore {
+    color: #f95738;
+    font-size: 36px;
+    margin: 15px 0 25px;
+    text-shadow: 0 0 10px rgba(249, 87, 56, 0.5);
+}
+
+.controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    text-align: right;
+    z-index: 10;
+}
+
+.instructions {
+    color: white;
+    font-size: 16px;
+    text-align: center;
+    margin-top: 15px;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    font-weight: bold;
+}
+
+.character-intro {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0 20px;
+    max-width: 800px;
+}
+
+.character-display {
+    width: 100px;
+    height: 100px;
+    margin-right: 20px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(249, 87, 56, 0.3);
+}
+
+@media (max-width: 768px) {
+    .game-header {
+        padding: 5px 10px;
+    }
+    
+    .score-container {
+        font-size: 14px;
+    }
+    
+    h1 {
+        font-size: 28px;
+    }
+    
+    h2 {
+        font-size: 20px;
+    }
+    
+    .button {
+        font-size: 16px;
+        padding: 8px 24px;
+    }
+    
+    .controls {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 600px) {
+    .character-intro {
+        flex-direction: column;
+    }
+    
+    .character-display {
+        margin-right: 0;
+        margin-bottom: 20px;
+    }
+    
+    .game-description {
+        text-align: center;
+    }
+}
+
+/* Mobile touch controls */
+.mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 20px;
+    z-index: 30;
+}
+
+.mobile-controls button {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    color: white;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+}
+
+.mobile-controls button:active {
+    transform: scale(0.95);
+    background-color: rgba(249, 87, 56, 0.7);
+}
+
+/* Orientation message with less intrusive styling */
+#orientation-message.recommendation {
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 50;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    min-height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.orientation-content {
+    padding: 15px;
+    text-align: center;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    max-width: 400px;
+}
+
+#dismiss-orientation {
+    margin-top: 15px;
+    padding: 8px 15px;
+    background-color: #f95738;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+#dismiss-orientation:hover {
+    background-color: #ff7d66;
+}
+
+/* Improved portrait mode styling for better fit */
+@media (orientation: portrait) {
+    .game-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 10;
+        padding: 5px;
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+    
+    .game-area {
+        padding-top: 40px; /* Space for header */
+    }
+    
+    .mobile-controls {
+        bottom: 10px;
+        left: 10px;
+    }
+    
+    .controls {
+        bottom: 10px;
+        right: 10px;
+        font-size: 10px;
+    }
+}
+
+/* Landscape specific adjustments */
+@media (orientation: landscape) {
+    .game-container {
+        overflow: hidden;
+    }
+    
+    /* Ensure full height - account for potential browser chrome */
+    .game-area {
+        height: calc(100% - 40px); /* Subtract header height */
+    }
+    
+    /* Move mobile controls to not interfere with player */
+    .mobile-controls {
+        bottom: 10px;
+        left: 10px;
+    }
+}
+
+/* Full viewport fix for iOS Safari */
+@supports (-webkit-touch-callout: none) {
+    html, body {
+        height: -webkit-fill-available;
+    }
+    
+    .game-container {
+        height: -webkit-fill-available;
+    }
+}
+
+/* Improve touch target sizes */
+.mobile-controls button {
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* Prevent text selection on mobile */
+* {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.rotate-icon {
+    font-size: 28px;
+    transform: rotate(90deg);
+    margin-bottom: 15px;
+    animation: rotate 2s infinite;
+    display: inline-block;
+}
+
+@keyframes rotate {
+    0% { transform: rotate(90deg); }
+    50% { transform: rotate(0deg); }
+    100% { transform: rotate(90deg); }
+} 

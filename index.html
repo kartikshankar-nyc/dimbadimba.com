@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="Join dimbadimba on an endless adventure. Jump over obstacles, collect coins, and set high scores in this fast-paced pixel art runner game.">
+    <title>Dimbadimba - Pixel Runner Game</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div class="game-title">PIXEL RUNNER</div>
+            <div class="score-container">
+                <div>
+                    <span>Score: </span>
+                    <span id="currentScore">0</span>
+                </div>
+                <div>
+                    <span>High Score: </span>
+                    <span id="highScore" class="high-score">0</span>
+                </div>
+            </div>
+            <button id="soundToggle" class="sound-toggle" aria-label="Mute">🔊</button>
+        </div>
+        
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+            
+            <!-- Start Screen Overlay -->
+            <div class="overlay" id="startScreen">
+                <h2>Pixel Runner</h2>
+                <div class="character-intro">
+                    <div id="dimbadimbaDisplay" class="character-display"></div>
+                    <p class="game-description">Journey with dimbadimba, the bouncy pixel hero! Leap over obstacles, grab those coins, and set a new high score in this fast-paced adventure!</p>
+                </div>
+                <div class="mode-selection">
+                    <p>Select Mode:</p>
+                    <div class="mode-buttons">
+                        <button id="dayModeBtn" class="selected">Day Mode</button>
+                        <button id="nightModeBtn">Night Mode</button>
+                    </div>
+                </div>
+                <button id="startButton">Start Game</button>
+                <p class="instructions">Press SPACE to jump, P to pause, M to toggle sound</p>
+            </div>
+        </div>
+        
+        <div id="game-over" class="overlay hidden">
+            <h1>GAME OVER</h1>
+            <h2>Your Score:</h2>
+            <div id="finalScore">0</div>
+            <button id="restartButton">PLAY AGAIN</button>
+        </div>
+        
+        <div class="controls">
+            <div>SPACE - Jump</div>
+            <div>P - Pause</div>
+            <div>M - Toggle Sound</div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+    <script>
+        // Register service worker for offline capabilities
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registered successfully'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html> 
