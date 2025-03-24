@@ -237,12 +237,39 @@ h2 {
 
 .controls {
     position: absolute;
-    bottom: 20px;
+    top: 70px; /* Position below the game header */
     right: 20px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 14px;
-    text-align: right;
-    z-index: 10;
+    color: rgba(255, 255, 255, 1);
+    font-size: 16px;
+    text-align: left;
+    z-index: 100;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.controls-header {
+    margin-bottom: 10px;
+    color: #f95738;
+    font-size: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 5px;
+    text-align: left;
+    font-weight: bold;
+}
+
+.controls div:not(.controls-header) {
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+    text-align: left;
+    line-height: 1.4;
 }
 
 .instructions {
@@ -425,9 +452,14 @@ h2 {
     }
     
     .controls {
-        bottom: 10px;
+        top: 50px;
         right: 10px;
-        font-size: 10px;
+        font-size: 14px;
+        padding: 10px;
+    }
+    
+    .controls-header {
+        font-size: 16px;
     }
 }
 
