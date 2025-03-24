@@ -1,0 +1,21 @@
+{
+  "name": "Dimbadimba - Pixel Runner",
+  "short_name": "Dimbadimba",
+  "description": "Jump and collect coins with dimbadimba in this endless runner game",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#000000",
+  "theme_color": "#f95738",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+} 
