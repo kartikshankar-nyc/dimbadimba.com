@@ -41,28 +41,22 @@
 </head>
 <body>
     <div class="game-container">
+        <!-- Game Header -->
         <div class="game-header">
-            <div class="game-title">PIXEL RUNNER</div>
-            <div class="score-container">
-                <div>
-                    <span>Score: </span>
-                    <span id="currentScore">0</span>
-                </div>
-                <div>
-                    <span>High Score: </span>
-                    <span id="highScore" class="high-score">0</span>
-                </div>
+            <h1 class="game-title">PIXEL RUNNER</h1>
+            <div class="score-boxes">
+                <div class="score-box">Score: <span id="currentScore">0</span></div>
+                <div class="score-box">High Score: <span id="highScore">0</span></div>
             </div>
-            <button id="soundToggle" class="sound-toggle" aria-label="Mute">🔊</button>
+            <div class="controls-compact">
+                <div class="controls-item"><span class="controls-key">Space</span> Jump</div>
+                <div class="controls-item"><span class="controls-key">P</span> Pause</div>
+                <div class="controls-item"><span class="controls-key">M</span> Sound</div>
+            </div>
+            <button id="soundToggle" aria-label="Toggle Sound">🔊</button>
         </div>
         
-        <div class="controls">
-            <div class="controls-header">CONTROLS</div>
-            <div>SPACE BAR - JUMP</div>
-            <div>P - PAUSE</div>
-            <div>M - SOUND (ON/OFF)</div>
-        </div>
-        
+        <!-- Game Canvas Area -->
         <div class="game-area">
             <canvas id="gameCanvas"></canvas>
             
@@ -83,13 +77,14 @@
                 <button id="startButton">Start Game</button>
                 <p class="instructions">Press SPACE to jump, P to pause, M to toggle sound</p>
             </div>
-        </div>
-        
-        <div id="game-over" class="overlay hidden">
-            <h1>GAME OVER</h1>
-            <h2>Your Score:</h2>
-            <div id="finalScore">0</div>
-            <button id="restartButton">PLAY AGAIN</button>
+            
+            <!-- Game Over Screen -->
+            <div id="game-over" class="overlay hidden">
+                <h1>GAME OVER</h1>
+                <h2>Your Score:</h2>
+                <div id="finalScore">0</div>
+                <button id="restartButton">PLAY AGAIN</button>
+            </div>
         </div>
     </div>
     
