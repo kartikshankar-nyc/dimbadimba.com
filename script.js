@@ -1105,8 +1105,10 @@ function loadPlayerImage() {
         // Also create a version for the start screen (make this larger too)
         const startScreenDimbadimba = document.createElement('img');
         startScreenDimbadimba.src = playerImage.src;
-        startScreenDimbadimba.style.width = '150px'; // Increased from 100px
+        startScreenDimbadimba.style.width = '160px'; // Further increased from 150px
         startScreenDimbadimba.style.height = 'auto';
+        startScreenDimbadimba.style.filter = 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))';
+        startScreenDimbadimba.classList.add('start-screen-character');
         
         // Display character on start screen
         const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
