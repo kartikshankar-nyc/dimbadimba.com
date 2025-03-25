@@ -1065,21 +1065,26 @@ function loadPlayerImage() {
         
         // Create a properly sized version that maintains aspect ratio
         const canvas = document.createElement('canvas');
-        canvas.width = PLAYER_WIDTH;
-        canvas.height = PLAYER_HEIGHT;
+        canvas.width = PLAYER_WIDTH * 1.5;  // Make canvas larger than player hitbox
+        canvas.height = PLAYER_HEIGHT * 1.5;
         const ctx = canvas.getContext('2d');
         
-        // Calculate scaling to maintain aspect ratio while fitting within player dimensions
-        const scale = Math.min(
+        // Calculate base scaling to maintain aspect ratio
+        let baseScale = Math.min(
             PLAYER_WIDTH / playerImage.width,
             PLAYER_HEIGHT / playerImage.height
         );
         
-        // Calculate centered position
+        // Make the character at least 2.5x larger than the minimum fit
+        const scale = baseScale * 2.5;
+        
+        // Calculate dimensions with the enhanced scale
         const width = playerImage.width * scale;
         const height = playerImage.height * scale;
-        const x = (PLAYER_WIDTH - width) / 2;
-        const y = (PLAYER_HEIGHT - height) / 2;
+        
+        // Center the image on the canvas (may extend beyond player hitbox)
+        const x = (canvas.width - width) / 2;
+        const y = (canvas.height - height) / 2;
         
         // Store these dimensions and offsets for use in drawGame
         gameState.dimbadimba.imageScale = scale;
@@ -1087,18 +1092,20 @@ function loadPlayerImage() {
         gameState.dimbadimba.imageHeight = height;
         gameState.dimbadimba.imageOffsetX = x;
         gameState.dimbadimba.imageOffsetY = y;
+        gameState.dimbadimba.canvasWidth = canvas.width;
+        gameState.dimbadimba.canvasHeight = canvas.height;
         
         // Clear and draw the image centered and scaled
-        ctx.clearRect(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(playerImage, x, y, width, height);
         
         // Use this canvas as the player sprite
         sprites.player = canvas;
         
-        // Also create a version for the start screen
+        // Also create a version for the start screen (make this larger too)
         const startScreenDimbadimba = document.createElement('img');
         startScreenDimbadimba.src = playerImage.src;
-        startScreenDimbadimba.style.width = '100px';
+        startScreenDimbadimba.style.width = '150px'; // Increased from 100px
         startScreenDimbadimba.style.height = 'auto';
         
         // Display character on start screen
@@ -2080,22 +2087,54 @@ function drawGame() {
     if (gameState.dimbadimba.isArmRotating) {
         // Create and draw a sprite with rotated arms
         const rotatedArmSprite = createRotatingArmSprite(gameState.dimbadimba.armRotation);
-        ctx.drawImage(
-            rotatedArmSprite,
-            gameState.dimbadimba.x,
-            gameState.dimbadimba.y,
-            gameState.dimbadimba.width,
-            gameState.dimbadimba.height
-        );
+        
+        // Check if we're using the custom image (which is larger than the player hitbox)
+        if (sprites.playerOriginal) {
+            // Calculate offset to center the larger sprite on the player's hitbox
+            const offsetX = (rotatedArmSprite.width - gameState.dimbadimba.width) / 2;
+            const offsetY = (rotatedArmSprite.height - gameState.dimbadimba.height) / 2;
+            
+            ctx.drawImage(
+                rotatedArmSprite,
+                gameState.dimbadimba.x - offsetX,
+                gameState.dimbadimba.y - offsetY,
+                rotatedArmSprite.width,
+                rotatedArmSprite.height
+            );
+        } else {
+            // Regular sized pixel art sprite
+            ctx.drawImage(
+                rotatedArmSprite,
+                gameState.dimbadimba.x,
+                gameState.dimbadimba.y,
+                gameState.dimbadimba.width,
+                gameState.dimbadimba.height
+            );
+        }
     } else {
         // Draw normal player sprite
-        ctx.drawImage(
-            sprites.player,
-            gameState.dimbadimba.x,
-            gameState.dimbadimba.y,
-            gameState.dimbadimba.width,
-            gameState.dimbadimba.height
-        );
+        if (sprites.playerOriginal) {
+            // Calculate offset to center the larger sprite on the player's hitbox
+            const offsetX = (sprites.player.width - gameState.dimbadimba.width) / 2;
+            const offsetY = (sprites.player.height - gameState.dimbadimba.height) / 2;
+            
+            ctx.drawImage(
+                sprites.player,
+                gameState.dimbadimba.x - offsetX,
+                gameState.dimbadimba.y - offsetY,
+                sprites.player.width,
+                sprites.player.height
+            );
+        } else {
+            // Regular sized pixel art sprite
+            ctx.drawImage(
+                sprites.player,
+                gameState.dimbadimba.x,
+                gameState.dimbadimba.y,
+                gameState.dimbadimba.width,
+                gameState.dimbadimba.height
+            );
+        }
     }
     ctx.restore();
     
@@ -2865,12 +2904,12 @@ function createRotatingArmSprite(angle) {
     if (sprites.playerOriginal) {
         // Create a temporary canvas for the modified sprite
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = PLAYER_WIDTH;
-        tempCanvas.height = PLAYER_HEIGHT;
+        tempCanvas.width = gameState.dimbadimba.canvasWidth || PLAYER_WIDTH * 1.5;
+        tempCanvas.height = gameState.dimbadimba.canvasHeight || PLAYER_HEIGHT * 1.5;
         const tempCtx = tempCanvas.getContext('2d');
         
         // Clear the canvas
-        tempCtx.clearRect(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT);
+        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
         
         // Draw the image with maintained aspect ratio
         tempCtx.drawImage(
@@ -2890,9 +2929,9 @@ function createRotatingArmSprite(angle) {
         // Draw small circles around the character to indicate motion
         for (let i = 0; i < 5; i++) {
             const circleAngle = angle + (i * Math.PI / 2.5);
-            const circleX = PLAYER_WIDTH / 2 + Math.cos(circleAngle) * (PLAYER_WIDTH * 0.4);
-            const circleY = PLAYER_HEIGHT / 2 + Math.sin(circleAngle) * (PLAYER_HEIGHT * 0.3);
-            const circleSize = 6 + Math.sin(angle * 3) * 3;
+            const circleX = tempCanvas.width / 2 + Math.cos(circleAngle) * (tempCanvas.width * 0.4);
+            const circleY = tempCanvas.height / 2 + Math.sin(circleAngle) * (tempCanvas.height * 0.3);
+            const circleSize = 10 + Math.sin(angle * 3) * 5; // Larger circles for bigger character
             
             tempCtx.beginPath();
             tempCtx.arc(circleX, circleY, circleSize, 0, Math.PI * 2);
