@@ -29,6 +29,7 @@ let gameState = {
     coins: [],
     powerups: [], // Array to store power-ups on screen
     activePowerups: {}, // Object to track active power-ups and their timers
+    pointIndicators: [], // Array to store point indicators when collecting coins
     timeSinceLastObstacle: 0,
     obstacleInterval: 1500,
     timeSinceLastCoin: 0,
@@ -53,6 +54,11 @@ let gameState = {
         maxFrames: 8,
         frameTimer: 0,
         frameInterval: 100,
+        armRotation: 0, // Angle for arm rotation animation
+        isArmRotating: false, // Flag to track if arms are rotating
+        armRotationSpeed: Math.PI/8, // Speed of arm rotation
+        armRotationCycles: 0, // Counter for completed cycles
+        maxArmRotationCycles: 2 // Number of full rotations to complete
     },
     firstObstacleSpawned: false, // Track if the first obstacle has spawned
     magnetRange: 150, // Range for magnet power-up to attract coins
@@ -1546,11 +1552,15 @@ function resetGame() {
     gameState.dimbadimba.y = GAME_HEIGHT - GROUND_HEIGHT - PLAYER_HEIGHT;
     gameState.dimbadimba.velocityY = 0;
     gameState.dimbadimba.jumping = false;
+    gameState.dimbadimba.armRotation = 0;
+    gameState.dimbadimba.isArmRotating = false;
+    gameState.dimbadimba.armRotationCycles = 0;
     gameState.speed = INITIAL_SPEED;
     gameState.score = 0;
     gameState.obstacles = [];
     gameState.coins = [];
     gameState.powerups = [];
+    gameState.pointIndicators = []; // Clear any point indicators
     gameState.activePowerups = {};
     gameState.timeSinceLastObstacle = 0;
     gameState.timeSinceLastCoin = 0;
@@ -1613,6 +1623,26 @@ function updatePlayer(deltaTime) {
         gameState.dimbadimba.y = groundY;
         gameState.dimbadimba.velocityY = 0;
         gameState.dimbadimba.jumping = false;
+    }
+    
+    // Update arm rotation animation if active
+    if (gameState.dimbadimba.isArmRotating) {
+        // Increase rotation angle
+        gameState.dimbadimba.armRotation += gameState.dimbadimba.armRotationSpeed;
+        
+        // Check if a full rotation is completed (2π radians)
+        if (gameState.dimbadimba.armRotation >= 2 * Math.PI) {
+            // Reset rotation angle but count the cycle
+            gameState.dimbadimba.armRotation = 0;
+            gameState.dimbadimba.armRotationCycles++;
+            
+            // Stop after the specified number of cycles
+            if (gameState.dimbadimba.armRotationCycles >= gameState.dimbadimba.maxArmRotationCycles) {
+                gameState.dimbadimba.isArmRotating = false;
+                gameState.dimbadimba.armRotationCycles = 0;
+                gameState.dimbadimba.armRotation = 0;
+            }
+        }
     }
 }
 
@@ -1791,9 +1821,27 @@ function checkCollisions() {
         const coin = gameState.coins[i];
         
         if (detectCollision(gameState.dimbadimba, coin)) {
+            // Get coin position before removing it
+            const coinX = coin.x + COIN_SIZE / 2;
+            const coinY = coin.y;
+            
+            // Remove coin from array
             gameState.coins.splice(i, 1);
-            gameState.score += 50 * gameState.scoreMultiplier;
+            
+            // Calculate points (accounting for multiplier)
+            const pointsEarned = 50 * gameState.scoreMultiplier;
+            
+            // Add to score
+            gameState.score += pointsEarned;
             updateScore();
+            
+            // Create visual indicator at coin position
+            createPointIndicator(coinX, coinY, pointsEarned);
+            
+            // Start arm rotation animation
+            gameState.dimbadimba.isArmRotating = true;
+            gameState.dimbadimba.armRotation = 0;
+            gameState.dimbadimba.armRotationCycles = 0;
             
             // Play coin sound
             sounds.coin();
@@ -1962,13 +2010,27 @@ function drawGame() {
         ctx.shadowBlur = 15;
     }
     
-    ctx.drawImage(
-        sprites.player,
-        gameState.dimbadimba.x,
-        gameState.dimbadimba.y,
-        gameState.dimbadimba.width,
-        gameState.dimbadimba.height
-    );
+    // Draw player with rotating arms or normal sprite
+    if (gameState.dimbadimba.isArmRotating) {
+        // Create and draw a sprite with rotated arms
+        const rotatedArmSprite = createRotatingArmSprite(gameState.dimbadimba.armRotation);
+        ctx.drawImage(
+            rotatedArmSprite,
+            gameState.dimbadimba.x,
+            gameState.dimbadimba.y,
+            gameState.dimbadimba.width,
+            gameState.dimbadimba.height
+        );
+    } else {
+        // Draw normal player sprite
+        ctx.drawImage(
+            sprites.player,
+            gameState.dimbadimba.x,
+            gameState.dimbadimba.y,
+            gameState.dimbadimba.width,
+            gameState.dimbadimba.height
+        );
+    }
     ctx.restore();
     
     // Draw magnet range indicator if active
@@ -2014,6 +2076,9 @@ function drawGame() {
         );
     }
     
+    // Draw point indicators
+    drawPointIndicators();
+    
     // Draw "paused" text if game is paused
     if (gameState.paused && gameState.running) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -2057,6 +2122,7 @@ function animationLoop(timestamp = 0) {
         updateObstacles(deltaTime);
         updateCoins(deltaTime);
         updatePowerups(deltaTime);
+        updatePointIndicators(deltaTime); // Update point indicators
         updateBackground();
         checkCollisions();
         
@@ -2597,4 +2663,175 @@ function createPowerupSprites() {
         [0,1,0,0,0,1,0],
         [1,0,0,0,0,0,1]
     ], '#f1c40f', 5); // Yellow
-} 
+}
+
+// Create a point indicator when collecting a coin
+function createPointIndicator(x, y, points) {
+    // Calculate position (centered above the coin)
+    const indicator = {
+        x: x,
+        y: y,
+        points: points,
+        opacity: 1.0,
+        scale: 1.0,
+        lifetime: 0,
+        maxLifetime: 2000 // Increased from 1500 to 2000ms for longer visibility
+    };
+    
+    // Add to the array of active indicators
+    gameState.pointIndicators.push(indicator);
+}
+
+// Update point indicators with improved animation
+function updatePointIndicators(deltaTime) {
+    for (let i = gameState.pointIndicators.length - 1; i >= 0; i--) {
+        const indicator = gameState.pointIndicators[i];
+        
+        // Update lifetime
+        indicator.lifetime += deltaTime;
+        
+        // First quarter of animation: explosive growth and fast rise
+        if (indicator.lifetime < indicator.maxLifetime / 4) {
+            indicator.y -= 2.0; // Much faster upward movement
+            indicator.scale = 0.5 + (indicator.lifetime / (indicator.maxLifetime / 4)) * 1.5; // Grow from 0.5 to 2.0 size
+        } 
+        // Second quarter: slower rise, maintain large size with bounce
+        else if (indicator.lifetime < (indicator.maxLifetime / 2)) {
+            indicator.y -= 1.0; // Medium speed
+            // Add a pronounced bouncing effect
+            const bouncePhase = (indicator.lifetime / 100) % (2 * Math.PI);
+            indicator.scale = 2.0 + Math.sin(bouncePhase) * 0.3;
+        }
+        // Third quarter: slow rise, start gentle fade
+        else if (indicator.lifetime < (indicator.maxLifetime * 3/4)) {
+            indicator.y -= 0.5;
+            indicator.scale = 2.0; // Maintain large size
+            indicator.opacity = 1.0;
+        }
+        // Final quarter: very slow rise and fade out
+        else {
+            indicator.y -= 0.3;
+            indicator.opacity = 1.0 - ((indicator.lifetime - (indicator.maxLifetime * 3/4)) / (indicator.maxLifetime/4));
+        }
+        
+        // Remove expired indicators
+        if (indicator.lifetime >= indicator.maxLifetime) {
+            gameState.pointIndicators.splice(i, 1);
+        }
+    }
+}
+
+// Draw point indicators on screen
+function drawPointIndicators() {
+    // Return early if no indicators
+    if (gameState.pointIndicators.length === 0) return;
+    
+    for (let i = 0; i < gameState.pointIndicators.length; i++) {
+        const indicator = gameState.pointIndicators[i];
+        
+        // Save context state
+        ctx.save();
+        
+        // Calculate base font size - much larger than before
+        const fontSize = Math.floor(30 * indicator.scale);
+        
+        // Set up text properties with larger size for more prominence
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Create a background glow for the text
+        ctx.shadowColor = 'rgba(255, 215, 0, 0.9)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw a thick black outline for maximum contrast
+        ctx.lineWidth = Math.max(3, fontSize / 8);
+        ctx.strokeStyle = `rgba(0, 0, 0, ${indicator.opacity})`;
+        ctx.strokeText(`+${indicator.points}`, indicator.x, indicator.y);
+        
+        // Draw bright inner text
+        // First a white base for brightness
+        ctx.fillStyle = `rgba(255, 255, 255, ${indicator.opacity})`;
+        ctx.fillText(`+${indicator.points}`, indicator.x, indicator.y);
+        
+        // Then overlay with gold gradient for shine effect
+        const gradient = ctx.createLinearGradient(
+            indicator.x - fontSize, 
+            indicator.y - fontSize/2,
+            indicator.x + fontSize,
+            indicator.y + fontSize/2
+        );
+        gradient.addColorStop(0, `rgba(255, 215, 0, ${indicator.opacity})`); // Gold
+        gradient.addColorStop(0.5, `rgba(255, 255, 200, ${indicator.opacity})`); // Bright yellow
+        gradient.addColorStop(1, `rgba(255, 140, 0, ${indicator.opacity})`); // Orange
+        
+        ctx.fillStyle = gradient;
+        ctx.fillText(`+${indicator.points}`, indicator.x, indicator.y);
+        
+        // Add sparkle effect (optional sparkles around the text)
+        if (indicator.lifetime < indicator.maxLifetime / 2) {
+            const sparkleCount = 3 + Math.floor(Math.random() * 3);
+            for (let j = 0; j < sparkleCount; j++) {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = fontSize * (0.8 + Math.random() * 0.5);
+                const sparkleX = indicator.x + Math.cos(angle) * distance;
+                const sparkleY = indicator.y + Math.sin(angle) * distance;
+                const sparkleSize = fontSize / 5 + Math.random() * (fontSize / 10);
+                
+                // Draw sparkle
+                ctx.fillStyle = `rgba(255, 255, 255, ${indicator.opacity * 0.8})`;
+                ctx.beginPath();
+                ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Restore context state
+        ctx.restore();
+    }
+}
+
+// Create a modified player sprite when arms are rotating
+function createRotatingArmSprite(angle) {
+    // Create a temporary canvas for the modified sprite
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = PLAYER_WIDTH;
+    tempCanvas.height = PLAYER_HEIGHT;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Draw the basic player sprite
+    tempCtx.drawImage(sprites.player, 0, 0);
+    
+    // Define the arm regions in the sprite (based on the dimbadimbaPixels array)
+    const leftArmX = 20; // Approximate x position of left arm
+    const rightArmX = 60; // Approximate x position of right arm
+    const armY = 70; // Approximate y position of arms
+    const armWidth = 20; // Approximate width of arm
+    const armHeight = 20; // Approximate height of arm
+    
+    // Clear the arm regions
+    tempCtx.clearRect(leftArmX, armY, armWidth, armHeight);
+    tempCtx.clearRect(rightArmX, armY, armWidth, armHeight);
+    
+    // Draw rotated arms
+    // Left arm
+    tempCtx.save();
+    tempCtx.translate(leftArmX + armWidth/2, armY + armHeight/2);
+    tempCtx.rotate(angle);
+    tempCtx.fillStyle = '#f1c40f'; // Yellow color for arms
+    tempCtx.fillRect(-armWidth/2, -armHeight/2, armWidth, armHeight);
+    tempCtx.restore();
+    
+    // Right arm
+    tempCtx.save();
+    tempCtx.translate(rightArmX + armWidth/2, armY + armHeight/2);
+    tempCtx.rotate(-angle); // Rotate in opposite direction
+    tempCtx.fillStyle = '#f1c40f'; // Yellow color for arms
+    tempCtx.fillRect(-armWidth/2, -armHeight/2, armWidth, armHeight);
+    tempCtx.restore();
+    
+    return tempCanvas;
+}
+  
