@@ -959,42 +959,8 @@ function updateModeButtons() {
 }
 
 function createSprites() {
-    // Player sprite (human-like dimbadimba with new color scheme)
-    const dimbadimbaPixels = [
-        [0,0,0,5,5,5,5,0,0,0], // Hair (black)
-        [0,0,5,1,1,1,1,5,0,0], // Head (green)
-        [0,0,5,1,4,4,1,5,0,0], // Eyes (white)
-        [0,0,5,1,1,1,1,5,0,0], // Face (green)
-        [0,0,0,5,1,1,5,0,0,0], // Neck (green)
-        [0,0,5,6,6,6,6,5,0,0], // Torso row 1 (black)
-        [0,2,7,7,7,7,7,7,2,0], // Torso row 2 (white) with yellow hands
-        [5,6,6,6,6,6,6,6,6,5], // Torso row 3 (black)
-        [0,0,1,0,0,0,0,1,0,0], // Legs (green)
-        [0,0,1,1,0,0,1,1,0,0]  // Feet (green)
-    ];
-    
-    const colorMap = [
-        '#2ecc71', // Green - index 1 (head, neck, legs)
-        '#f1c40f', // Yellow - index 2 (hands)
-        '#ffffff', // White - index 3 (alternating torso)
-        '#ffffff', // White - index 4 (eyes)
-        '#000000', // Black - index 5 (hair, outline)
-        '#000000', // Black - index 6 (alternating torso)
-        '#ffffff'  // White - index 7 (alternating torso)
-    ];
-    
-    // Create the player sprite with multiple colors - doubled scale from 6 to 12
-    sprites.player = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 12);
-    
-    // Also create a version for the start screen - doubled scale from 8 to 16
-    const startScreenDimbadimba = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 16);
-    
-    // Display character on start screen
-    const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
-    if (dimbadimbaDisplay) {
-        dimbadimbaDisplay.innerHTML = '';
-        dimbadimbaDisplay.appendChild(startScreenDimbadimba);
-    }
+    // Try to load player image first, then fall back to pixel art if image fails to load
+    loadPlayerImage();
     
     // Get current mode colors
     const modeColors = gameState.dayMode ? colors.day : colors.night;
@@ -1061,6 +1027,72 @@ function createSprites() {
     
     // Create power-up sprites
     createPowerupSprites();
+}
+
+// Function to load player image
+function loadPlayerImage() {
+    // Define the player pixels as fallback
+    const dimbadimbaPixels = [
+        [0,0,0,5,5,5,5,0,0,0], // Hair (black)
+        [0,0,5,1,1,1,1,5,0,0], // Head (green)
+        [0,0,5,1,4,4,1,5,0,0], // Eyes (white)
+        [0,0,5,1,1,1,1,5,0,0], // Face (green)
+        [0,0,0,5,1,1,5,0,0,0], // Neck (green)
+        [0,0,5,6,6,6,6,5,0,0], // Torso row 1 (black)
+        [0,2,7,7,7,7,7,7,2,0], // Torso row 2 (white) with yellow hands
+        [5,6,6,6,6,6,6,6,6,5], // Torso row 3 (black)
+        [0,0,1,0,0,0,0,1,0,0], // Legs (green)
+        [0,0,1,1,0,0,1,1,0,0]  // Feet (green)
+    ];
+    
+    const colorMap = [
+        '#2ecc71', // Green - index 1 (head, neck, legs)
+        '#f1c40f', // Yellow - index 2 (hands)
+        '#ffffff', // White - index 3 (alternating torso)
+        '#ffffff', // White - index 4 (eyes)
+        '#000000', // Black - index 5 (hair, outline)
+        '#000000', // Black - index 6 (alternating torso)
+        '#ffffff'  // White - index 7 (alternating torso)
+    ];
+
+    // Try to load the image
+    const playerImage = new Image();
+    playerImage.onload = function() {
+        console.log("Dimbadimba image loaded successfully");
+        sprites.player = playerImage;
+        
+        // Also create a version for the start screen
+        const startScreenDimbadimba = document.createElement('img');
+        startScreenDimbadimba.src = playerImage.src;
+        startScreenDimbadimba.style.width = '100px';
+        startScreenDimbadimba.style.height = 'auto';
+        
+        // Display character on start screen
+        const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
+        if (dimbadimbaDisplay) {
+            dimbadimbaDisplay.innerHTML = '';
+            dimbadimbaDisplay.appendChild(startScreenDimbadimba);
+        }
+    };
+    
+    playerImage.onerror = function() {
+        console.warn("Could not load dimbadimba image, falling back to pixel art");
+        // Create the player sprite with multiple colors - doubled scale from 6 to 12
+        sprites.player = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 12);
+        
+        // Also create a version for the start screen - doubled scale from 8 to 16
+        const startScreenDimbadimba = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 16);
+        
+        // Display character on start screen
+        const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
+        if (dimbadimbaDisplay) {
+            dimbadimbaDisplay.innerHTML = '';
+            dimbadimbaDisplay.appendChild(startScreenDimbadimba);
+        }
+    };
+    
+    // Set the source to try loading the image
+    playerImage.src = 'images/dimbadimba.png';
 }
 
 function createBackgroundSprites() {
@@ -2795,6 +2827,14 @@ function drawPointIndicators() {
 
 // Create a modified player sprite when arms are rotating
 function createRotatingArmSprite(angle) {
+    // If we're using an image for the player, return the image as is for now
+    // In a more advanced implementation, we could dynamically modify the image
+    // or have separate animation frames for the rotation
+    if (sprites.player instanceof HTMLImageElement) {
+        return sprites.player;
+    }
+    
+    // Otherwise use the existing pixel art animation
     // Create a temporary canvas for the modified sprite
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = PLAYER_WIDTH;
