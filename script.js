@@ -296,6 +296,35 @@ document.addEventListener('DOMContentLoaded', function() {
             fullscreenButton.style.display = 'none';
         }
     }
+    
+    // Function to handle fullscreen
+    fullscreenButton.addEventListener('click', function() {
+        toggleFullScreen();
+    });
+    
+    // Create orientation message
+    createOrientationMessage();
+    
+    // Check orientation initially
+    handleDeviceOrientation();
+    
+    // Ensure start button is visible
+    ensureStartButtonVisibility();
+    
+    // Listen for orientation changes
+    window.addEventListener('orientationchange', handleDeviceOrientation);
+    window.addEventListener('resize', handleDeviceOrientation);
+    
+    // Try to scroll to hide URL bar on page load
+    window.addEventListener('load', function() {
+        // Timeout needed for iOS
+        setTimeout(function() {
+            // Scroll to hide address bar
+            window.scrollTo(0, 1);
+            // Check button visibility again after hiding URL bar
+            ensureStartButtonVisibility();
+        }, 100);
+    });
 });
 
 function initializeAudio() {
@@ -2984,4 +3013,59 @@ function createRotatingArmSprite(angle) {
     
     return tempCanvas;
 }
+
+// Add this after the handleDeviceOrientation function
+
+// Ensure the start button is visible in landscape mode
+function ensureStartButtonVisibility() {
+    const startButton = document.getElementById('startButton');
+    const restartButton = document.getElementById('restartButton');
+    
+    // Function to check if an element is fully visible in the viewport
+    function isElementInViewport(el) {
+        if (!el) return false;
+        
+        const rect = el.getBoundingClientRect();
+        return (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
+    }
+    
+    // Function to check and scroll to button if needed
+    function checkButtonVisibility(button) {
+        if (button && !isElementInViewport(button)) {
+            // If button exists but is not fully visible
+            button.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Additionally force button into view on iOS
+            setTimeout(() => {
+                const overlay = button.closest('.overlay');
+                if (overlay) {
+                    const buttonPosition = button.offsetTop;
+                    overlay.scrollTop = buttonPosition - (overlay.clientHeight / 2) + (button.clientHeight / 2);
+                }
+            }, 100);
+        }
+    }
+    
+    // Check orientation and screen height to determine if we need to intervene
+    if (window.innerHeight < 500 && window.innerWidth > window.innerHeight) {
+        // We're in landscape on a small screen, likely mobile
+        if (startButton && !document.getElementById('startScreen').classList.contains('hidden')) {
+            checkButtonVisibility(startButton);
+        } else if (restartButton && !document.getElementById('game-over').classList.contains('hidden')) {
+            checkButtonVisibility(restartButton);
+        }
+    }
+}
+
+// Add to window resize and orientation change events
+window.addEventListener('resize', ensureStartButtonVisibility);
+window.addEventListener('orientationchange', function() {
+    // Small delay to allow the orientation change to complete
+    setTimeout(ensureStartButtonVisibility, 300);
+});
   
