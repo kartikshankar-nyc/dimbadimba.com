@@ -1059,7 +1059,41 @@ function loadPlayerImage() {
     const playerImage = new Image();
     playerImage.onload = function() {
         console.log("Dimbadimba image loaded successfully");
-        sprites.player = playerImage;
+        
+        // Store the original image for reference
+        sprites.playerOriginal = playerImage;
+        
+        // Create a properly sized version that maintains aspect ratio
+        const canvas = document.createElement('canvas');
+        canvas.width = PLAYER_WIDTH;
+        canvas.height = PLAYER_HEIGHT;
+        const ctx = canvas.getContext('2d');
+        
+        // Calculate scaling to maintain aspect ratio while fitting within player dimensions
+        const scale = Math.min(
+            PLAYER_WIDTH / playerImage.width,
+            PLAYER_HEIGHT / playerImage.height
+        );
+        
+        // Calculate centered position
+        const width = playerImage.width * scale;
+        const height = playerImage.height * scale;
+        const x = (PLAYER_WIDTH - width) / 2;
+        const y = (PLAYER_HEIGHT - height) / 2;
+        
+        // Store these dimensions and offsets for use in drawGame
+        gameState.dimbadimba.imageScale = scale;
+        gameState.dimbadimba.imageWidth = width;
+        gameState.dimbadimba.imageHeight = height;
+        gameState.dimbadimba.imageOffsetX = x;
+        gameState.dimbadimba.imageOffsetY = y;
+        
+        // Clear and draw the image centered and scaled
+        ctx.clearRect(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT);
+        ctx.drawImage(playerImage, x, y, width, height);
+        
+        // Use this canvas as the player sprite
+        sprites.player = canvas;
         
         // Also create a version for the start screen
         const startScreenDimbadimba = document.createElement('img');
@@ -2827,11 +2861,46 @@ function drawPointIndicators() {
 
 // Create a modified player sprite when arms are rotating
 function createRotatingArmSprite(angle) {
-    // If we're using an image for the player, return the image as is for now
-    // In a more advanced implementation, we could dynamically modify the image
-    // or have separate animation frames for the rotation
-    if (sprites.player instanceof HTMLImageElement) {
-        return sprites.player;
+    // If we're using an image for the player, return the cached properly sized image
+    if (sprites.playerOriginal) {
+        // Create a temporary canvas for the modified sprite
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = PLAYER_WIDTH;
+        tempCanvas.height = PLAYER_HEIGHT;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Clear the canvas
+        tempCtx.clearRect(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT);
+        
+        // Draw the image with maintained aspect ratio
+        tempCtx.drawImage(
+            sprites.playerOriginal, 
+            gameState.dimbadimba.imageOffsetX, 
+            gameState.dimbadimba.imageOffsetY, 
+            gameState.dimbadimba.imageWidth, 
+            gameState.dimbadimba.imageHeight
+        );
+        
+        // Add some visual effect to show the arm rotating action
+        // (like a subtle glow or sparkle since we can't actually rotate arms on the image)
+        tempCtx.save();
+        tempCtx.globalAlpha = 0.5;
+        tempCtx.fillStyle = '#f1c40f'; // Yellow color for effect
+        
+        // Draw small circles around the character to indicate motion
+        for (let i = 0; i < 5; i++) {
+            const circleAngle = angle + (i * Math.PI / 2.5);
+            const circleX = PLAYER_WIDTH / 2 + Math.cos(circleAngle) * (PLAYER_WIDTH * 0.4);
+            const circleY = PLAYER_HEIGHT / 2 + Math.sin(circleAngle) * (PLAYER_HEIGHT * 0.3);
+            const circleSize = 6 + Math.sin(angle * 3) * 3;
+            
+            tempCtx.beginPath();
+            tempCtx.arc(circleX, circleY, circleSize, 0, Math.PI * 2);
+            tempCtx.fill();
+        }
+        tempCtx.restore();
+        
+        return tempCanvas;
     }
     
     // Otherwise use the existing pixel art animation
