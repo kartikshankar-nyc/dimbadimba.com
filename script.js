@@ -1507,9 +1507,14 @@ function startGame() {
         }
     }
     
+    // Cancel any existing animation frame before starting a new one
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+    
     // Ensure animation loop starts correctly
     lastTime = performance.now();
-    requestAnimationFrame(animationLoop);
+    animationFrameId = requestAnimationFrame(animationLoop);
 }
 
 function restartGame() {
@@ -1527,9 +1532,14 @@ function restartGame() {
         sounds.backgroundMusic.play();
     }
     
+    // Cancel any existing animation frame before starting a new one
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+    
     // Ensure animation loop starts correctly with proper timing
     lastTime = performance.now();
-    requestAnimationFrame(animationLoop);
+    animationFrameId = requestAnimationFrame(animationLoop);
 }
 
 function resetGame() {
@@ -1560,7 +1570,17 @@ function resetGame() {
     updateScore();
 }
 
+// Add a pause toggle cooldown to prevent rapid toggling
+let pauseToggleCooldown = false;
+
 function togglePause() {
+    // Prevent rapid toggling that can cause timing/animation issues
+    if (pauseToggleCooldown) return;
+    
+    // Set a short cooldown (150ms) to prevent multiple rapid toggles
+    pauseToggleCooldown = true;
+    setTimeout(() => { pauseToggleCooldown = false; }, 150);
+    
     gameState.paused = !gameState.paused;
     
     // Handle music when pausing/unpausing
@@ -1568,9 +1588,9 @@ function togglePause() {
         sounds.backgroundMusic.stop();
     } else if (gameState.soundEnabled) {
         sounds.backgroundMusic.play();
-        animationLoop();
-    } else if (!gameState.paused) {
-        animationLoop();
+        
+        // Reset lastTime when unpausing to prevent huge deltaTime on first frame
+        lastTime = performance.now();
     }
 }
 
@@ -2009,18 +2029,26 @@ function drawGame() {
 }
 
 let lastTime = 0;
+let animationFrameId = null; // Track the animation frame ID
+
 function animationLoop(timestamp = 0) {
     // Safety check for game state
-    if (!gameState || !gameState.running) return;
+    if (!gameState || !gameState.running) {
+        animationFrameId = null; // Reset the animation frame ID
+        return;
+    }
+    
+    // Continue the animation loop
+    animationFrameId = requestAnimationFrame(animationLoop);
     
     if (gameState.paused) {
-        drawGame();
-        requestAnimationFrame(animationLoop);
+        drawGame(); // Keep drawing the paused state
         return;
     }
     
     // Ensure valid deltaTime (prevent huge jumps if tab was inactive)
-    const deltaTime = Math.min(timestamp - lastTime, 100);
+    // If lastTime is 0 (first frame or after unpause), use a small default delta
+    const deltaTime = (lastTime === 0) ? 16 : Math.min(timestamp - lastTime, 100);
     lastTime = timestamp;
     
     try {
@@ -2028,7 +2056,7 @@ function animationLoop(timestamp = 0) {
         updatePlayer(deltaTime);
         updateObstacles(deltaTime);
         updateCoins(deltaTime);
-        updatePowerups(deltaTime); // Add power-up updates
+        updatePowerups(deltaTime);
         updateBackground();
         checkCollisions();
         
@@ -2040,9 +2068,6 @@ function animationLoop(timestamp = 0) {
     } catch (e) {
         console.error("Error in game loop:", e);
     }
-    
-    // Continue loop
-    requestAnimationFrame(animationLoop);
 }
 
 // Setup improved touch events for mobile

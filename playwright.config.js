@@ -5,23 +5,18 @@ const { defineConfig, devices } = require('@playwright/test');
  * @see https://playwright.dev/docs/test-configuration
  */
 module.exports = defineConfig({
-  testDir: './tests/e2e',
-  timeout: 120 * 1000,
-  expect: {
-    timeout: 15000
-  },
-  fullyParallel: false,
+  testDir: './playwright',
+  timeout: 30 * 1000,
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 3 : 2,
-  workers: 1,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
-    actionTimeout: 30000,
-    navigationTimeout: 45000,
-    trace: 'on',
-    video: 'on',
-    screenshot: 'on',
+    baseURL: 'file://' + __dirname,
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'on-first-retry'
   },
 
   projects: [
@@ -31,21 +26,11 @@ module.exports = defineConfig({
     },
     {
       name: 'firefox',
-      use: { 
-        ...devices['Desktop Firefox'],
-        launchOptions: {
-          slowMo: 100,
-        }
-      },
+      use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',
-      use: { 
-        ...devices['Desktop Safari'],
-        launchOptions: {
-          slowMo: 100,
-        }
-      },
+      use: { ...devices['Desktop Safari'] },
     },
     {
       name: 'Mobile Chrome',
@@ -53,12 +38,7 @@ module.exports = defineConfig({
     },
     {
       name: 'Mobile Safari',
-      use: { 
-        ...devices['iPhone 12'],
-        launchOptions: {
-          slowMo: 200,
-        }
-      },
+      use: { ...devices['iPhone 13'] },
     },
   ],
 

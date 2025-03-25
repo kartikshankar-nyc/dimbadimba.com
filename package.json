@@ -11,7 +11,9 @@
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
     "test:e2e:debug": "npx playwright test --debug",
-    "install:browsers": "npx playwright install"
+    "install:browsers": "npx playwright install",
+    "test:e2e:headed": "npx playwright test --headed",
+    "test:e2e:pause-tests": "npx playwright test playwright/pause-functionality.spec.js --headed"
   },
   "author": "",
   "license": "ISC",
