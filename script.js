@@ -241,6 +241,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check for mobile device
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // Specifically check for iOS devices
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    // Apply iOS specific class
+    if (isIOS) {
+        document.body.classList.add('ios-device');
+    }
     
     // Set canvas dimensions to fill the screen
     updateCanvasSize();
@@ -439,17 +446,36 @@ function initializeAudio() {
 }
 
 function updateCanvasSize() {
-    // Update game dimensions
-    GAME_WIDTH = window.innerWidth;
-    GAME_HEIGHT = window.innerHeight;
+    // Get the actual visible viewport dimensions
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isAndroid = /Android/.test(navigator.userAgent);
+    
+    // iOS and Android have different ways of reporting viewport size
+    // Use visual viewport API if available (more accurate on mobile)
+    if (window.visualViewport) {
+        GAME_WIDTH = window.visualViewport.width;
+        GAME_HEIGHT = window.visualViewport.height;
+    } else {
+        GAME_WIDTH = window.innerWidth;
+        GAME_HEIGHT = window.innerHeight;
+    }
+    
+    // Adjust for iOS safe areas
+    if (isIOS) {
+        const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0');
+        const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0');
+        
+        if (safeAreaTop) GAME_HEIGHT -= safeAreaTop;
+        if (safeAreaBottom) GAME_HEIGHT -= safeAreaBottom;
+    }
     
     // Performance optimization for mobile devices
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobile = isIOS || isAndroid || /webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     // Reduce quality on low-end devices
-    if (isMobile && (window.innerWidth * window.innerHeight > 1000000)) {
+    if (isMobile && (GAME_WIDTH * GAME_HEIGHT > 1000000)) {
         // For very high-resolution mobile screens, use a scaling factor
-        const scaleFactor = Math.min(1, 1000000 / (window.innerWidth * window.innerHeight));
+        const scaleFactor = Math.min(1, 1000000 / (GAME_WIDTH * GAME_HEIGHT));
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         canvas.width = Math.floor(GAME_WIDTH * scaleFactor);
@@ -469,8 +495,11 @@ function updateCanvasSize() {
         }
     }
     
-    // Adjust game height to account for browser UI
+    // Adjust game container and elements to account for browser UI
     adjustGameHeight();
+    
+    // Handle orientation changes
+    handleDeviceOrientation();
     
     // Recreate ground pattern if it exists
     if (sprites.ground) {
@@ -2581,7 +2610,7 @@ function handleDeviceOrientation() {
 
 function adjustGameHeight() {
     // Get the actual visible viewport height
-    const vh = window.innerHeight;
+    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     const gameContainer = document.querySelector('.game-container');
     const gameHeader = document.querySelector('.game-header');
     
@@ -2592,8 +2621,38 @@ function adjustGameHeight() {
         // Adjust canvas to fit within container minus header height
         const headerHeight = gameHeader.offsetHeight;
         const canvas = document.getElementById('gameCanvas');
+        
         if (canvas) {
-            canvas.style.height = `${vh - headerHeight}px`;
+            // Account for any safe areas on notched phones
+            const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0');
+            const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0');
+            
+            const totalSafeAreaHeight = safeAreaTop + safeAreaBottom;
+            const adjustedHeight = Math.max(vh - headerHeight - totalSafeAreaHeight, vh * 0.7); // Ensure minimum height
+            
+            canvas.style.height = `${adjustedHeight}px`;
+            
+            // Set CSS variables for safe areas that can be used in CSS
+            document.documentElement.style.setProperty('--viewport-height', `${vh}px`);
+            document.documentElement.style.setProperty('--game-canvas-height', `${adjustedHeight}px`);
+        }
+        
+        // Adjust mobile controls position for different devices
+        const mobileControls = document.querySelector('.mobile-controls');
+        if (mobileControls) {
+            const isLandscape = window.innerWidth > window.innerHeight;
+            
+            // In landscape mode on short screens, move controls to the right side
+            if (isLandscape && vh < 500) {
+                mobileControls.style.left = 'auto';
+                mobileControls.style.right = '20px';
+                mobileControls.style.bottom = '10px';
+            } else {
+                // Reset to default position
+                mobileControls.style.left = '20px';
+                mobileControls.style.right = 'auto';
+                mobileControls.style.bottom = '20px';
+            }
         }
     }
 }

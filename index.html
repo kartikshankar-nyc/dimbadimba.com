@@ -42,6 +42,18 @@
     <meta property="og:site_name" content="Dimbadimba Pixel Runner">
     <!-- Add Google AdSense verification meta tag -->
     <meta name="google-adsense-account" content="ca-pub-6252458590674215">
+    
+    <!-- iOS Safe Area CSS variables -->
+    <style>
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sar: env(safe-area-inset-right);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+            --viewport-height: 100vh;
+            --game-canvas-height: calc(100vh - 60px);
+        }
+    </style>
 </head>
 <body>
     <div class="game-container">
