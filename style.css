@@ -1203,4 +1203,88 @@ html, body {
         width: 40px;
         height: 40px;
     }
+}
+
+/* Install button styles */
+.install-button {
+    background-color: #27ae60 !important; /* Green color */
+    color: white !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    font-size: 16px !important;
+    cursor: pointer !important;
+    margin-top: 15px !important;
+    margin-bottom: 15px !important;
+    border: 2px solid #219653 !important;
+    box-shadow: 0 4px 0 #1e8449 !important;
+    transition: all 0.2s !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: 'PixelFont', Arial, sans-serif !important;
+}
+
+.install-button:hover {
+    background-color: #2ecc71 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 0 #1e8449 !important;
+}
+
+.install-button:active {
+    transform: translateY(2px) !important;
+    box-shadow: 0 2px 0 #1e8449 !important;
+}
+
+.install-icon {
+    margin-right: 8px !important;
+    font-size: 20px !important;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Install prompt toast */
+.install-toast {
+    position: fixed !important;
+    bottom: 20px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    z-index: 1000 !important;
+    display: flex !important;
+    align-items: center !important;
+    animation: fadeIn 0.3s ease-in-out !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.install-toast-message {
+    margin-right: 15px !important;
+}
+
+.install-toast-button {
+    background-color: #3498db !important;
+    border: none !important;
+    color: white !important;
+    padding: 5px 10px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+}
+
+.install-toast-close {
+    margin-left: 10px !important;
+    cursor: pointer !important;
+    opacity: 0.7 !important;
+}
+
+.install-toast-close:hover {
+    opacity: 1 !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; bottom: 0; }
+    to { opacity: 1; bottom: 20px; }
 } 

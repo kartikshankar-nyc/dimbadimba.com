@@ -17,6 +17,11 @@ const POWERUP_SIZE = 40; // Size of power-up items
 const POWERUP_DURATION = 7000; // Duration of power-ups in milliseconds
 const POWERUP_SPAWN_CHANCE = 0.15; // Chance of spawning a power-up when an obstacle is passed
 
+// PWA Installation Variables
+let deferredPrompt;
+let installButton;
+let installToastShown = false;
+
 // Difficulty presets
 const DIFFICULTY_SETTINGS = {
     easy: {
@@ -247,6 +252,9 @@ document.addEventListener('DOMContentLoaded', function() {
     normalModeBtn = document.getElementById('normalModeBtn');
     hardModeBtn = document.getElementById('hardModeBtn');
     
+    // Get PWA install button
+    installButton = document.getElementById('installButton');
+    
     // Create power-up indicator element
     createPowerupIndicator();
     
@@ -283,6 +291,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add event listeners
     setupEventListeners();
+    
+    // Initialize PWA installation features
+    initPwaInstallation();
     
     // Setup mobile-specific features if on mobile
     if (isMobile) {
@@ -3269,6 +3280,143 @@ function applyDifficultySettings() {
         gameState.gravity = GRAVITY;
         gameState.jumpForce = JUMP_FORCE;
         gameState.powerupSpawnChance = POWERUP_SPAWN_CHANCE;
+    }
+}
+
+// PWA Installation Functions
+
+// Initialize PWA installation features
+function initPwaInstallation() {
+    // Check if the app is already installed
+    if (window.matchMedia('(display-mode: standalone)').matches || 
+        window.navigator.standalone === true) {
+        // App is already installed, don't show install button
+        return;
+    }
+    
+    // Listen for beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent the default browser install prompt
+        e.preventDefault();
+        
+        // Store the event for later use
+        deferredPrompt = e;
+        
+        // Show the install button
+        if (installButton) {
+            installButton.classList.remove('hidden');
+        }
+        
+        // Show toast notification after 30 seconds if user hasn't installed
+        if (!installToastShown && !localStorage.getItem('installToastDismissed')) {
+            setTimeout(() => {
+                showInstallToast();
+            }, 30000);
+        }
+    });
+    
+    // Listen for appinstalled event
+    window.addEventListener('appinstalled', (e) => {
+        // Hide the install button when app is installed
+        if (installButton) {
+            installButton.classList.add('hidden');
+        }
+        
+        // Remove any install toasts
+        removeInstallToast();
+        
+        // Log the installation to analytics
+        console.log('PWA was installed');
+        
+        // Set a flag in localStorage to remember it was installed
+        localStorage.setItem('appInstalled', 'true');
+    });
+    
+    // Add click event listener to install button
+    if (installButton) {
+        installButton.addEventListener('click', installPWA);
+    }
+}
+
+// Function to handle PWA installation
+function installPWA() {
+    if (!deferredPrompt) {
+        console.log('Unable to install: Install prompt not available');
+        return;
+    }
+    
+    // Show the browser install prompt
+    deferredPrompt.prompt();
+    
+    // Wait for the user to respond to the prompt
+    deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+        } else {
+            console.log('User dismissed the install prompt');
+        }
+        
+        // Clear the deferred prompt variable
+        deferredPrompt = null;
+    });
+}
+
+// Function to show install toast notification
+function showInstallToast() {
+    // Check if toast already exists or was previously dismissed
+    if (document.querySelector('.install-toast') || localStorage.getItem('installToastDismissed') === 'true') {
+        return;
+    }
+    
+    // Create toast container
+    const toast = document.createElement('div');
+    toast.className = 'install-toast';
+    
+    // Create toast message
+    const message = document.createElement('span');
+    message.className = 'install-toast-message';
+    message.textContent = 'Install Dimbadimba for the best gaming experience!';
+    
+    // Create install button
+    const button = document.createElement('button');
+    button.className = 'install-toast-button';
+    button.textContent = 'Install';
+    button.addEventListener('click', () => {
+        installPWA();
+        removeInstallToast();
+    });
+    
+    // Create close button
+    const close = document.createElement('span');
+    close.className = 'install-toast-close';
+    close.innerHTML = '&times;';
+    close.addEventListener('click', () => {
+        removeInstallToast();
+        localStorage.setItem('installToastDismissed', 'true');
+    });
+    
+    // Add elements to toast
+    toast.appendChild(message);
+    toast.appendChild(button);
+    toast.appendChild(close);
+    
+    // Add toast to body
+    document.body.appendChild(toast);
+    
+    // Set flag to prevent showing again
+    installToastShown = true;
+    
+    // Auto-remove toast after 10 seconds
+    setTimeout(() => {
+        removeInstallToast();
+    }, 10000);
+}
+
+// Function to remove install toast
+function removeInstallToast() {
+    const toast = document.querySelector('.install-toast');
+    if (toast) {
+        toast.remove();
     }
 }
   
