@@ -3313,107 +3313,48 @@ function initPwaInstallation() {
         return; // No need to show installation options
     }
     
-    // Desktop browsers that aren't Chrome/Edge - hide install button and instructions
-    if (isDesktop && !isPWASupported) {
-        console.log('Desktop browser detected that doesn\'t support PWA installation');
-        if (installButton) installButton.classList.add('hidden');
-        if (iosInstructions) iosInstructions.classList.add('hidden');
-        if (androidInstructions) androidInstructions.classList.add('hidden');
-        return;
-    }
+    // Listen for beforeinstallprompt event (works on Chrome/Android)
+    window.addEventListener('beforeinstallprompt', (e) => {
+        console.log('beforeinstallprompt event fired!', e);
+        
+        // For browsers' native install prompt - DO NOT PREVENT DEFAULT
+        // e.preventDefault(); - Removing this to allow the native prompt to show
+        
+        // Store the event for later use with our custom button
+        deferredPrompt = e;
+        
+        // Show our custom install button as a fallback/alternative
+        if (installButton) {
+            installButton.classList.remove('hidden');
+            console.log('Install button made visible due to beforeinstallprompt event');
+        }
+        
+        // If on Android, hide the manual instructions since we have the prompt
+        if (isAndroid && androidInstructions) {
+            androidInstructions.classList.add('hidden');
+        }
+    });
     
+    // iOS doesn't support beforeinstallprompt, show iOS instructions
     if (isIOS) {
         console.log('iOS device detected');
-        // Show iOS specific install instructions
         if (iosInstructions) {
             iosInstructions.classList.remove('hidden');
             console.log('iOS installation instructions displayed');
         }
-        
-        // iOS doesn't support beforeinstallprompt, hide the install button
-        if (installButton) {
-            installButton.classList.add('hidden');
-        }
-        
-        return;
     }
     
+    // If Android but no prompt fires, show instructions after a delay
     if (isAndroid) {
         console.log('Android device detected');
         
-        // Listen for beforeinstallprompt event (works on Chrome/Android)
-        window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('beforeinstallprompt event fired on Android!', e);
-            
-            // Prevent the default browser install prompt
-            e.preventDefault();
-            
-            // Store the event for later use
-            deferredPrompt = e;
-            
-            // Show the install button
-            if (installButton) {
-                installButton.classList.remove('hidden');
-                console.log('Install button made visible due to beforeinstallprompt event');
-            }
-            
-            // Hide the manual instructions since we have the button
-            if (androidInstructions) {
-                androidInstructions.classList.add('hidden');
-            }
-            
-            // Show toast notification after 30 seconds if user hasn't installed
-            if (!installToastShown && !localStorage.getItem('installToastDismissed')) {
-                setTimeout(() => {
-                    showInstallToast();
-                }, 30000);
-            }
-        });
-        
-        // If Android but no prompt event fired yet (or browser doesn't support it),
-        // show the manual instructions
+        // Show manual instructions if no prompt event fires
         setTimeout(() => {
             if (!deferredPrompt && androidInstructions) {
                 androidInstructions.classList.remove('hidden');
                 console.log('Android manual installation instructions displayed');
             }
-        }, 3000); // Wait a few seconds to see if the prompt event fires
-        
-        return;
-    }
-    
-    // For other browsers (desktop Chrome/Edge)
-    if (isPWASupported) {
-        console.log('PWA-compatible desktop browser detected');
-        
-        // Keep install button hidden until prompt is available
-        if (installButton) installButton.classList.add('hidden');
-        
-        window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('beforeinstallprompt event fired!', e);
-            
-            // Prevent the default browser install prompt
-            e.preventDefault();
-            
-            // Store the event for later use
-            deferredPrompt = e;
-            
-            // Show the install button
-            if (installButton) {
-                installButton.classList.remove('hidden');
-                console.log('Install button made visible due to beforeinstallprompt event');
-            }
-            
-            // Show toast notification after 30 seconds if user hasn't installed
-            if (!installToastShown && !localStorage.getItem('installToastDismissed')) {
-                setTimeout(() => {
-                    showInstallToast();
-                }, 30000);
-            }
-        });
-    } else {
-        // Hide install options for unsupported browsers
-        if (installButton) installButton.classList.add('hidden');
+        }, 3000);
     }
     
     // Listen for appinstalled event
@@ -3429,19 +3370,16 @@ function initPwaInstallation() {
         if (iosInstructions) iosInstructions.classList.add('hidden');
         if (androidInstructions) androidInstructions.classList.add('hidden');
         
-        // Remove any install toasts
-        removeInstallToast();
-        
-        // Log the installation to analytics
-        console.log('PWA was installed');
-        
         // Set a flag in localStorage to remember it was installed
         localStorage.setItem('appInstalled', 'true');
     });
     
     // Add click event listener to install button
     if (installButton) {
-        installButton.addEventListener('click', installPWA);
+        installButton.addEventListener('click', function() {
+            console.log('Install button clicked');
+            installPWA();
+        });
         console.log('Click listener added to install button');
     } else {
         console.error('Install button not found in the DOM');
@@ -3455,47 +3393,52 @@ function installPWA() {
     if (!deferredPrompt) {
         console.log('Unable to install: Install prompt not available');
         
-        // Detect browser type for more specific instructions
-        const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge|Edg/.test(navigator.userAgent);
-        const isEdge = /Edge|Edg/.test(navigator.userAgent);
-        const isFirefox = /Firefox/.test(navigator.userAgent);
-        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        // Detect device type
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isAndroid = /Android/.test(navigator.userAgent);
         
-        let message = 'Installation not available right now.';
-        
-        if (isChrome) {
-            message = 'To install this app in Chrome, click the menu (⋮) in the top-right corner and select "Install Dimbadimba..." or "Add to desktop".';
-        } else if (isEdge) {
-            message = 'To install this app in Edge, click the menu (…) in the top-right corner and select "Apps" > "Install this site as an app".';
-        } else if (isFirefox) {
-            message = 'Firefox does not fully support PWA installation on desktop. Please try using Chrome or Edge.';
-        } else if (isSafari) {
-            message = 'Safari on desktop does not support PWA installation. Please try using Chrome or Edge.';
+        if (isIOS) {
+            alert('To install on iOS: tap the Share button then "Add to Home Screen"');
+        } else if (isAndroid) {
+            alert('To install on Android: tap the menu button (⋮) then "Add to Home Screen"');
+        } else {
+            // Desktop browsers
+            const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge|Edg/.test(navigator.userAgent);
+            const isEdge = /Edge|Edg/.test(navigator.userAgent);
+            
+            let message = 'Installation not available right now.';
+            
+            if (isChrome) {
+                message = 'To install this app in Chrome, click the menu (⋮) in the top-right corner and select "Install Dimbadimba..." or "Add to desktop".';
+            } else if (isEdge) {
+                message = 'To install this app in Edge, click the menu (…) in the top-right corner and select "Apps" > "Install this site as an app".';
+            }
+            
+            alert(message);
         }
-        
-        alert(message);
         return;
     }
     
-    // Show the browser install prompt
-    deferredPrompt.prompt();
-    console.log('Installation prompt displayed');
-    
-    // Wait for the user to respond to the prompt
-    deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-            console.log('User accepted the install prompt');
-        } else {
-            console.log('User dismissed the install prompt');
-        }
+    try {
+        // Show the browser install prompt
+        deferredPrompt.prompt();
+        console.log('Installation prompt displayed');
         
-        // Clear the deferred prompt variable
-        deferredPrompt = null;
-    }).catch(error => {
-        console.error('Error with installation prompt:', error);
-        alert('There was an error during installation. Please try again later or use the browser menu to install.');
-        deferredPrompt = null;
-    });
+        // Wait for the user to respond to the prompt
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+            } else {
+                console.log('User dismissed the install prompt');
+            }
+            
+            // Clear the deferred prompt variable
+            deferredPrompt = null;
+        });
+    } catch (err) {
+        console.error('Error showing installation prompt:', err);
+        alert('There was an error with the installation. Please try using the browser menu to install.');
+    }
 }
 
 // Function to show install toast notification

@@ -1211,7 +1211,7 @@ html, body {
     color: white !important;
     padding: 12px 20px !important;
     border-radius: 8px !important;
-    font-size: 16px !important;
+    font-size: 18px !important;
     cursor: pointer !important;
     margin-top: 15px !important;
     margin-bottom: 15px !important;
@@ -1222,17 +1222,19 @@ html, body {
     align-items: center !important;
     justify-content: center !important;
     font-family: 'PixelFont', Arial, sans-serif !important;
+    -webkit-tap-highlight-color: rgba(0,0,0,0) !important; /* Remove tap highlight on mobile */
+    position: relative !important;
+    z-index: 100 !important; /* Ensure it's above other elements */
+    width: auto !important;
+    min-width: 180px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
 }
 
-.install-button:hover {
+.install-button:hover, .install-button:active {
     background-color: #2ecc71 !important;
     transform: translateY(-2px) !important;
     box-shadow: 0 6px 0 #1e8449 !important;
-}
-
-.install-button:active {
-    transform: translateY(2px) !important;
-    box-shadow: 0 2px 0 #1e8449 !important;
 }
 
 .install-icon {
