@@ -38,28 +38,37 @@ self.addEventListener('activate', event => {
           }
         })
       );
+    }).then(() => {
+      return self.clients.claim();
     })
   );
 });
 
 // Fetch event - serve from cache, fall back to network
 self.addEventListener('fetch', event => {
+  // Strip query parameters for cache matching
+  const requestUrl = new URL(event.request.url);
+  const cacheKey = requestUrl.origin + requestUrl.pathname;
+  
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request)
-          .then(response => {
-            // Cache new resources
-            if (response.status === 200 && response.type === 'basic') {
-              const responseToCache = response.clone();
-              caches.open(CACHE_NAME)
-                .then(cache => {
-                  cache.put(event.request, responseToCache);
-                });
-            }
-            return response;
-          });
+        // If exact match found, return it
+        if (response) {
+          return response;
+        }
+        
+        // Check if a version without query params is in cache
+        if (requestUrl.search) {
+          return caches.match(cacheKey)
+            .then(strippedResponse => {
+              // Return cached version without query or fetch from network
+              return strippedResponse || fetchAndCache(event.request);
+            });
+        }
+        
+        // Fetch and cache if not found
+        return fetchAndCache(event.request);
       })
       .catch(() => {
         // Fallback for game assets
@@ -68,4 +77,27 @@ self.addEventListener('fetch', event => {
         }
       })
   );
-}); 
+});
+
+// Helper function to fetch and cache resources
+function fetchAndCache(request) {
+  return fetch(request)
+    .then(response => {
+      // Cache new successful responses
+      if (response.status === 200 && response.type === 'basic') {
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME)
+          .then(cache => {
+            cache.put(request, responseToCache);
+            
+            // Also cache a version without query params
+            const requestUrl = new URL(request.url);
+            if (requestUrl.search) {
+              const strippedUrl = requestUrl.origin + requestUrl.pathname;
+              cache.put(new Request(strippedUrl), response.clone());
+            }
+          });
+      }
+      return response;
+    });
+} 

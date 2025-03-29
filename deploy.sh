@@ -2,6 +2,11 @@
 
 # Simple deployment script for dimbadimba.com
 
+# Generate a timestamp for cache busting
+TIMESTAMP=$(date +%s)
+
+echo "Starting deployment with cache busting (v$TIMESTAMP)..."
+
 echo "Preparing Dimbadimba game files for deployment..."
 
 # Create a deployment directory
@@ -34,11 +39,28 @@ else
     echo "ImageMagick not found. Please create your own icon files."
 fi
 
+# Create versioned copies of CSS and JS files
+cp style.css "style.css?v=$TIMESTAMP"
+cp script.js "script.js?v=$TIMESTAMP"
+
+# Update references in index.html with versioned ones
+sed -i.bak "s/style\.css/style\.css?v=$TIMESTAMP/g" index.html
+sed -i.bak "s/script\.js/script\.js?v=$TIMESTAMP/g" index.html
+
+# Update service-worker.js to cache both original and versioned files
+sed -i.bak "s/CACHE_NAME = 'dimbadimba-game-v[0-9]*'/CACHE_NAME = 'dimbadimba-game-v$TIMESTAMP'/g" service-worker.js
+sed -i.bak "/\/script\.js',/a \ \ 'script.js?v=$TIMESTAMP'," service-worker.js
+sed -i.bak "/\/style\.css',/a \ \ 'style.css?v=$TIMESTAMP'," service-worker.js
+
+# Clean up backup files
+find . -name "*.bak" -type f -delete
+
 # Create a zip file for easy upload
 cd deploy
 zip -r dimbadimba_game.zip ./*
 cd ..
 
+echo "Deployment complete with cache busting (v$TIMESTAMP)"
 echo "Deployment package created successfully!"
 echo "You can find the zip file at: deploy/dimbadimba_game.zip"
 echo ""
