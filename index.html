@@ -10,7 +10,7 @@
     <meta name="description" content="Join dimbadimba on an endless adventure. Jump over obstacles, collect coins, and set high scores in this fast-paced pixel art runner game.">
     <title>Dimbadimba - Pixel Runner Game</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json" crossorigin="use-credentials">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -100,6 +100,16 @@
                     <span class="install-icon">📱</span> Install Game
                 </button>
                 
+                <!-- Fallback install instructions for iOS -->
+                <div id="iosInstallInstructions" class="install-instructions hidden">
+                    <p>To install on iOS: tap <span class="highlight">Share</span> <span class="icon">⎙</span> then <span class="highlight">Add to Home Screen</span> <span class="icon">+</span></p>
+                </div>
+                
+                <!-- Fallback install instructions for Android -->
+                <div id="androidInstallInstructions" class="install-instructions hidden">
+                    <p>To install on Android: tap <span class="highlight">Menu</span> <span class="icon">⋮</span> then <span class="highlight">Add to Home Screen</span> <span class="icon">+</span></p>
+                </div>
+                
                 <p class="instructions">Press SPACE to jump, P to pause, M to toggle sound</p>
             </div>
             
@@ -121,10 +131,34 @@
         // Register service worker for offline capabilities
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(reg => console.log('Service Worker registered successfully'))
-                    .catch(err => console.log('Service Worker registration failed:', err));
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => {
+                        console.log('Service Worker registered successfully', reg);
+                        // Check if an update is available
+                        reg.onupdatefound = function() {
+                            const installingWorker = reg.installing;
+                            installingWorker.onstatechange = function() {
+                                console.log('Service Worker state changed:', installingWorker.state);
+                            };
+                        };
+                    })
+                    .catch(err => {
+                        console.error('Service Worker registration failed:', err);
+                        // Remove the alert that was confusing users
+                        // alert('PWA functionality may be limited. Please check console for details.');
+                    });
+                
+                // Check the current registration status
+                navigator.serviceWorker.getRegistration().then(registration => {
+                    if (registration) {
+                        console.log('Service worker currently registered:', registration);
+                    } else {
+                        console.warn('No service worker registration found');
+                    }
+                });
             });
+        } else {
+            console.warn('Service Workers not supported in this browser');
         }
         
         // Function to handle fullscreen

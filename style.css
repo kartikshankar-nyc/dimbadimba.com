@@ -1287,4 +1287,28 @@ html, body {
 @keyframes fadeIn {
     from { opacity: 0; bottom: 0; }
     to { opacity: 1; bottom: 20px; }
+}
+
+/* iOS installation instructions */
+.install-instructions {
+    margin: 15px auto !important;
+    padding: 10px 15px !important;
+    background: rgba(0,0,0,0.5) !important;
+    border-radius: 8px !important;
+    color: white !important;
+    max-width: 300px !important;
+    text-align: center !important;
+    font-size: 14px !important;
+    border: 1px dashed rgba(255,255,255,0.3) !important;
+}
+
+.install-instructions .highlight {
+    color: #3498db !important;
+    font-weight: bold !important;
+}
+
+.install-instructions .icon {
+    display: inline-block !important;
+    margin: 0 3px !important;
+    font-size: 16px !important;
 } 

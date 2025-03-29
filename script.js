@@ -3287,40 +3287,147 @@ function applyDifficultySettings() {
 
 // Initialize PWA installation features
 function initPwaInstallation() {
-    // Check if the app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches || 
-        window.navigator.standalone === true) {
-        // App is already installed, don't show install button
+    console.log('PWA initialization started');
+    
+    // Get installation instruction elements
+    const iosInstructions = document.getElementById('iosInstallInstructions');
+    const androidInstructions = document.getElementById('androidInstallInstructions');
+    
+    // Detect device types
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isMobile = isIOS || isAndroid || /Mobi|Android/i.test(navigator.userAgent);
+    const isDesktop = !isMobile;
+    
+    // Detect browsers that support PWA installation
+    const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge|Edg/.test(navigator.userAgent);
+    const isEdge = /Edge|Edg/.test(navigator.userAgent);
+    const isPWASupported = isChrome || isEdge || isAndroid;
+    
+    // Check if the app is already installed in standalone mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                         window.navigator.standalone === true;
+    
+    if (isStandalone) {
+        console.log('App appears to be already installed in standalone mode');
+        return; // No need to show installation options
+    }
+    
+    // Desktop browsers that aren't Chrome/Edge - hide install button and instructions
+    if (isDesktop && !isPWASupported) {
+        console.log('Desktop browser detected that doesn\'t support PWA installation');
+        if (installButton) installButton.classList.add('hidden');
+        if (iosInstructions) iosInstructions.classList.add('hidden');
+        if (androidInstructions) androidInstructions.classList.add('hidden');
         return;
     }
     
-    // Listen for beforeinstallprompt event
-    window.addEventListener('beforeinstallprompt', (e) => {
-        // Prevent the default browser install prompt
-        e.preventDefault();
+    if (isIOS) {
+        console.log('iOS device detected');
+        // Show iOS specific install instructions
+        if (iosInstructions) {
+            iosInstructions.classList.remove('hidden');
+            console.log('iOS installation instructions displayed');
+        }
         
-        // Store the event for later use
-        deferredPrompt = e;
-        
-        // Show the install button
+        // iOS doesn't support beforeinstallprompt, hide the install button
         if (installButton) {
-            installButton.classList.remove('hidden');
+            installButton.classList.add('hidden');
         }
         
-        // Show toast notification after 30 seconds if user hasn't installed
-        if (!installToastShown && !localStorage.getItem('installToastDismissed')) {
-            setTimeout(() => {
-                showInstallToast();
-            }, 30000);
-        }
-    });
+        return;
+    }
+    
+    if (isAndroid) {
+        console.log('Android device detected');
+        
+        // Listen for beforeinstallprompt event (works on Chrome/Android)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt event fired on Android!', e);
+            
+            // Prevent the default browser install prompt
+            e.preventDefault();
+            
+            // Store the event for later use
+            deferredPrompt = e;
+            
+            // Show the install button
+            if (installButton) {
+                installButton.classList.remove('hidden');
+                console.log('Install button made visible due to beforeinstallprompt event');
+            }
+            
+            // Hide the manual instructions since we have the button
+            if (androidInstructions) {
+                androidInstructions.classList.add('hidden');
+            }
+            
+            // Show toast notification after 30 seconds if user hasn't installed
+            if (!installToastShown && !localStorage.getItem('installToastDismissed')) {
+                setTimeout(() => {
+                    showInstallToast();
+                }, 30000);
+            }
+        });
+        
+        // If Android but no prompt event fired yet (or browser doesn't support it),
+        // show the manual instructions
+        setTimeout(() => {
+            if (!deferredPrompt && androidInstructions) {
+                androidInstructions.classList.remove('hidden');
+                console.log('Android manual installation instructions displayed');
+            }
+        }, 3000); // Wait a few seconds to see if the prompt event fires
+        
+        return;
+    }
+    
+    // For other browsers (desktop Chrome/Edge)
+    if (isPWASupported) {
+        console.log('PWA-compatible desktop browser detected');
+        
+        // Keep install button hidden until prompt is available
+        if (installButton) installButton.classList.add('hidden');
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt event fired!', e);
+            
+            // Prevent the default browser install prompt
+            e.preventDefault();
+            
+            // Store the event for later use
+            deferredPrompt = e;
+            
+            // Show the install button
+            if (installButton) {
+                installButton.classList.remove('hidden');
+                console.log('Install button made visible due to beforeinstallprompt event');
+            }
+            
+            // Show toast notification after 30 seconds if user hasn't installed
+            if (!installToastShown && !localStorage.getItem('installToastDismissed')) {
+                setTimeout(() => {
+                    showInstallToast();
+                }, 30000);
+            }
+        });
+    } else {
+        // Hide install options for unsupported browsers
+        if (installButton) installButton.classList.add('hidden');
+    }
     
     // Listen for appinstalled event
     window.addEventListener('appinstalled', (e) => {
+        console.log('appinstalled event fired!', e);
+        
         // Hide the install button when app is installed
         if (installButton) {
             installButton.classList.add('hidden');
         }
+        
+        // Hide any instructions
+        if (iosInstructions) iosInstructions.classList.add('hidden');
+        if (androidInstructions) androidInstructions.classList.add('hidden');
         
         // Remove any install toasts
         removeInstallToast();
@@ -3335,18 +3442,44 @@ function initPwaInstallation() {
     // Add click event listener to install button
     if (installButton) {
         installButton.addEventListener('click', installPWA);
+        console.log('Click listener added to install button');
+    } else {
+        console.error('Install button not found in the DOM');
     }
 }
 
 // Function to handle PWA installation
 function installPWA() {
+    console.log('installPWA function called, deferredPrompt:', deferredPrompt ? 'available' : 'not available');
+    
     if (!deferredPrompt) {
         console.log('Unable to install: Install prompt not available');
+        
+        // Detect browser type for more specific instructions
+        const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge|Edg/.test(navigator.userAgent);
+        const isEdge = /Edge|Edg/.test(navigator.userAgent);
+        const isFirefox = /Firefox/.test(navigator.userAgent);
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        
+        let message = 'Installation not available right now.';
+        
+        if (isChrome) {
+            message = 'To install this app in Chrome, click the menu (⋮) in the top-right corner and select "Install Dimbadimba..." or "Add to desktop".';
+        } else if (isEdge) {
+            message = 'To install this app in Edge, click the menu (…) in the top-right corner and select "Apps" > "Install this site as an app".';
+        } else if (isFirefox) {
+            message = 'Firefox does not fully support PWA installation on desktop. Please try using Chrome or Edge.';
+        } else if (isSafari) {
+            message = 'Safari on desktop does not support PWA installation. Please try using Chrome or Edge.';
+        }
+        
+        alert(message);
         return;
     }
     
     // Show the browser install prompt
     deferredPrompt.prompt();
+    console.log('Installation prompt displayed');
     
     // Wait for the user to respond to the prompt
     deferredPrompt.userChoice.then((choiceResult) => {
@@ -3357,6 +3490,10 @@ function installPWA() {
         }
         
         // Clear the deferred prompt variable
+        deferredPrompt = null;
+    }).catch(error => {
+        console.error('Error with installation prompt:', error);
+        alert('There was an error during installation. Please try again later or use the browser menu to install.');
         deferredPrompt = null;
     });
 }
