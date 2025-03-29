@@ -10,20 +10,22 @@
     <meta name="description" content="Join dimbadimba on an endless adventure. Jump over obstacles, collect coins, and set high scores in this fast-paced pixel art runner game.">
     <title>Dimbadimba - Pixel Runner Game</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json" crossorigin="use-credentials">
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <!-- Add iOS splash screen images -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Favicon and App Icons -->
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+    
+    <!-- iOS icons and settings -->
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    <link rel="apple-touch-startup-image" href="icons/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="icons/splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="icons/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="icons/splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="icons/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="icons/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="icons/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="icons/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dimbadimba">
+    
     <!-- Theme color for browser UI -->
     <meta name="theme-color" content="#3498db">
     <!-- Twitter card data -->
@@ -139,21 +141,24 @@
                             const installingWorker = reg.installing;
                             installingWorker.onstatechange = function() {
                                 console.log('Service Worker state changed:', installingWorker.state);
+                                if (installingWorker.state === 'activated') {
+                                    console.log('Service Worker activated - PWA ready to use');
+                                    // Force a reload to ensure the new service worker takes control
+                                    if (!navigator.serviceWorker.controller) {
+                                        window.location.reload();
+                                    }
+                                }
                             };
                         };
                     })
                     .catch(err => {
                         console.error('Service Worker registration failed:', err);
-                        // Remove the alert that was confusing users
-                        // alert('PWA functionality may be limited. Please check console for details.');
                     });
                 
-                // Check the current registration status
-                navigator.serviceWorker.getRegistration().then(registration => {
-                    if (registration) {
-                        console.log('Service worker currently registered:', registration);
-                    } else {
-                        console.warn('No service worker registration found');
+                // Check for existing registrations and update if needed
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.update();
                     }
                 });
             });

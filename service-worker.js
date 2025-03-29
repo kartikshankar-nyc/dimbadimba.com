@@ -1,21 +1,28 @@
 // Dimbadimba Game - Service Worker
 
-const CACHE_NAME = 'dimbadimba-game-v1';
+const CACHE_NAME = 'dimbadimba-game-v2';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/script.js',
-  '/manifest.json',
-  '/favicon-16.png',
-  '/favicon-32.png',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png'
+  './',
+  './index.html',
+  './style.css',
+  './script.js',
+  './manifest.json',
+  './icons/icon-16x16.png',
+  './icons/icon-32x32.png',
+  './icons/icon-72x72.png',
+  './icons/icon-96x96.png',
+  './icons/icon-128x128.png',
+  './icons/icon-144x144.png',
+  './icons/icon-152x152.png',
+  './icons/icon-192x192.png',
+  './icons/icon-384x384.png',
+  './icons/icon-512x512.png',
+  './images/dimbadimba.png'
 ];
 
 // Install event - cache assets
 self.addEventListener('install', event => {
+  console.log('Service Worker installing');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
