@@ -3297,19 +3297,20 @@ function initPwaInstallation() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isAndroid = /Android/.test(navigator.userAgent);
     const isMobile = isIOS || isAndroid || /Mobi|Android/i.test(navigator.userAgent);
-    const isDesktop = !isMobile;
-    
-    // Detect browsers that support PWA installation
-    const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge|Edg/.test(navigator.userAgent);
-    const isEdge = /Edge|Edg/.test(navigator.userAgent);
-    const isPWASupported = isChrome || isEdge || isAndroid;
     
     // Check if the app is already installed in standalone mode
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
                          window.navigator.standalone === true;
+    const wasInstalled = localStorage.getItem('appInstalled') === 'true';
     
-    if (isStandalone) {
-        console.log('App appears to be already installed in standalone mode');
+    // Hide install button if already installed or previously installed
+    if (isStandalone || wasInstalled) {
+        console.log('App appears to be already installed or was previously installed');
+        if (installButton) {
+            installButton.classList.add('hidden');
+        }
+        if (iosInstructions) iosInstructions.classList.add('hidden');
+        if (androidInstructions) androidInstructions.classList.add('hidden');
         return; // No need to show installation options
     }
     
@@ -3323,7 +3324,7 @@ function initPwaInstallation() {
         // Store the event for later use with our custom button
         deferredPrompt = e;
         
-        // Show our custom install button as a fallback/alternative
+        // Show our custom install button
         if (installButton) {
             installButton.classList.remove('hidden');
             console.log('Install button made visible due to beforeinstallprompt event');
@@ -3361,17 +3362,16 @@ function initPwaInstallation() {
     window.addEventListener('appinstalled', (e) => {
         console.log('appinstalled event fired!', e);
         
-        // Hide the install button when app is installed
-        if (installButton) {
-            installButton.classList.add('hidden');
-        }
-        
-        // Hide any instructions
+        // Hide the install button and instructions when app is installed
+        if (installButton) installButton.classList.add('hidden');
         if (iosInstructions) iosInstructions.classList.add('hidden');
         if (androidInstructions) androidInstructions.classList.add('hidden');
         
         // Set a flag in localStorage to remember it was installed
         localStorage.setItem('appInstalled', 'true');
+        
+        // Alert the user that installation was successful
+        alert('Game successfully installed! You can now access it from your home screen.');
     });
     
     // Add click event listener to install button
@@ -3383,6 +3383,13 @@ function initPwaInstallation() {
         console.log('Click listener added to install button');
     } else {
         console.error('Install button not found in the DOM');
+    }
+    
+    // Check if the app was launched from the home screen
+    if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('App launched in standalone mode (from home screen)');
+        localStorage.setItem('appInstalled', 'true');
+        if (installButton) installButton.classList.add('hidden');
     }
 }
 

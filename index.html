@@ -50,20 +50,35 @@
         
         <!-- Game Header -->
         <div class="game-header">
-            <h1 class="game-title">PIXEL RUNNER</h1>
-            <div class="score-boxes">
-                <div class="score-item">Score: <span id="currentScore">0</span></div>
-                <div class="score-separator">|</div>
-                <div class="score-item">High Score: <span id="highScore">0</span></div>
-                <div class="score-separator">|</div>
-                <div class="score-item">Difficulty: <span id="difficultyDisplay">Normal</span></div>
+            <div class="header-row first-row">
+                <div class="title-container">
+                    <h1 class="game-title">PIXEL RUNNER</h1>
+                </div>
+                <div class="header-buttons">
+                    <button id="soundToggle" aria-label="Toggle Sound">🔊</button>
+                    <button id="installButton" class="install-button hidden" data-debug="install-btn">
+                        <span class="install-icon">📱</span> Install
+                    </button>
+                </div>
             </div>
-            <div class="controls-compact">
-                <div class="controls-item"><span class="controls-key">Space</span> Jump</div>
-                <div class="controls-item"><span class="controls-key">P</span> Pause</div>
-                <div class="controls-item"><span class="controls-key">M</span> Sound</div>
+            <div class="header-row second-row">
+                <div class="aligned-container">
+                    <div class="score-boxes">
+                        <div class="score-item">Score: <span id="currentScore">0</span></div>
+                        <div class="score-separator">|</div>
+                        <div class="score-item">High Score: <span id="highScore">0</span></div>
+                        <div class="score-separator">|</div>
+                        <div class="score-item">Difficulty: <span id="difficultyDisplay">Normal</span></div>
+                    </div>
+                </div>
+                <div class="controls-container">
+                    <div class="control-item"><span class="control-key">Space</span> Jump</div>
+                    <div class="control-separator">|</div>
+                    <div class="control-item"><span class="control-key">P</span> Pause</div>
+                    <div class="control-separator">|</div>
+                    <div class="control-item"><span class="control-key">M</span> Sound</div>
+                </div>
             </div>
-            <button id="soundToggle" aria-label="Toggle Sound">🔊</button>
         </div>
         
         <!-- Game Canvas Area -->
@@ -99,11 +114,6 @@
                 
                 <button id="startButton">Start Game</button>
                 
-                <!-- Install button (show by default, will be hidden by JS if not applicable) -->
-                <button id="installButton" class="install-button" data-debug="install-btn">
-                    <span class="install-icon">📱</span> Install Game
-                </button>
-                
                 <!-- Fallback install instructions for iOS -->
                 <div id="iosInstallInstructions" class="install-instructions hidden">
                     <p>To install on iOS: tap <span class="highlight">Share</span> <span class="icon">⎙</span> then <span class="highlight">Add to Home Screen</span> <span class="icon">+</span></p>
@@ -113,8 +123,6 @@
                 <div id="androidInstallInstructions" class="install-instructions hidden">
                     <p>To install on Android: tap <span class="highlight">Menu</span> <span class="icon">⋮</span> then <span class="highlight">Add to Home Screen</span> <span class="icon">+</span></p>
                 </div>
-                
-                <p class="instructions">Press SPACE to jump, P to pause, M to toggle sound</p>
             </div>
             
             <!-- Game Over Screen -->

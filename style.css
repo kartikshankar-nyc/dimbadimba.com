@@ -34,96 +34,113 @@ html, body {
 .game-header {
     width: 100%;
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 5px 10px;
     background-color: rgba(0, 0, 0, 0.9);
     position: relative;
     z-index: 10;
     border-bottom: 2px solid #f95738;
 }
 
+.header-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 2px 0;
+    position: relative;
+    padding: 0;
+}
+
+.title-container {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+}
+
 .game-title {
     font-family: 'PixelFont', Arial, sans-serif;
-    font-size: 28px;
+    font-size: 22px;
     color: #f95738;
     text-shadow: 0 0 10px rgba(249, 87, 56, 0.5);
     margin: 0;
+    padding: 0;
     letter-spacing: 1px;
+    text-align: left;
+}
+
+.aligned-container {
+    display: flex;
+    width: auto;
+    padding: 0;
+    margin: 0;
 }
 
 .score-boxes {
     display: flex !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     align-items: center !important;
-    margin: 15px auto !important;
-    padding: 10px 15px !important;
+    margin: 0 !important;
+    padding: 3px 8px 3px 0 !important; /* Right padding only */
     background-color: rgba(0, 0, 0, 0.3) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
-    max-width: 90% !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     width: auto !important;
-    font-size: 20px !important;
+    font-size: 14px !important;
     font-weight: bold !important;
     letter-spacing: 0.5px !important;
     color: white !important;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+    text-align: left !important;
 }
 
-.score-item {
-    padding: 0 8px !important;
+.score-item, .control-item {
+    padding: 0 6px !important;
     text-align: center !important;
 }
 
-.score-separator {
+.score-item:first-child {
+    padding-left: 0 !important; /* Remove padding from first item to align with PIXEL */
+}
+
+/* Make sure second row has correct styling */
+.header-row.second-row {
+    margin-top: 0;
+}
+
+.header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.score-separator, .control-separator {
     color: rgba(255, 255, 255, 0.6) !important;
-    margin: 0 5px !important;
+    margin: 0 3px !important;
     font-weight: normal !important;
 }
 
 .score-item span {
     color: #ffdd57 !important; /* Bright yellow for values */
-    margin-left: 5px !important;
+    margin-left: 3px !important;
     font-weight: bold !important;
-}
-
-.controls-compact {
-    margin-left: auto;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-}
-
-.controls-item {
-    display: flex;
-    align-items: center;
-}
-
-.controls-key {
-    background-color: rgba(255, 255, 255, 0.25);
-    border-radius: 4px;
-    padding: 2px 6px;
-    margin-right: 5px;
-    font-size: 12px;
-    font-weight: bold;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 #soundToggle {
     background: none;
     border: none;
     color: #ffffff;
-    font-size: 22px;
+    font-size: 20px;
     cursor: pointer;
-    padding: 5px 10px;
-    margin-left: 15px;
+    padding: 5px;
     transition: transform 0.2s;
     opacity: 0.9;
+    position: relative;
+    top: auto;
+    right: auto;
 }
 
 #soundToggle:hover {
@@ -149,12 +166,12 @@ html, body {
     color: rgba(255, 255, 255, 0.4);
 }
 
-/* Ensure the game canvas takes up the maximum space */
+/* Adjust the game area to ensure proper layout after header size change */
 .game-area {
     flex: 1;
     position: relative;
     width: 100%;
-    height: calc(100% - 60px); /* Account for header height */
+    height: calc(100% - 60px); /* Reduce to account for smaller header */
     overflow: hidden;
 }
 
@@ -321,45 +338,36 @@ h2 {
 }
 
 @media (max-width: 768px) {
-    .game-header {
-        padding: 10px 15px;
+    .header-row {
+        flex-direction: row;
+        flex-wrap: wrap;
     }
     
-    .game-title {
-        font-size: 24px;
-    }
-    
-    .score-boxes {
-        margin-left: 15px;
-    }
-    
-    .controls-compact {
-        display: none; /* Hide controls on smaller screens */
+    .score-boxes, .controls-container {
+        font-size: 13px !important;
+        padding: 2px 8px !important;
     }
 }
 
 @media (max-width: 500px) {
-    .game-header {
+    .header-row:last-child {
         flex-direction: column;
-        align-items: center;
-        text-align: center;
-        padding: 8px 10px;
+        gap: 5px;
     }
     
     .game-title {
-        font-size: 22px;
-        margin-bottom: 8px;
+        font-size: 18px;
     }
     
-    .score-boxes {
-        margin-left: 0;
+    .score-boxes, .controls-container {
+        width: 95%;
+        padding: 2px 6px !important;
+        font-size: 12px !important;
     }
     
-    #soundToggle {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        margin: 0;
+    .control-key {
+        font-size: 10px !important;
+        padding: 1px 3px !important;
     }
 }
 
@@ -1343,4 +1351,219 @@ html, body {
     .score-separator {
         margin: 0 3px !important;
     }
+}
+
+/* Controls styling */
+.controls-container {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin: 0 !important;
+    margin-left: auto !important;
+    padding: 3px 12px !important;
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+.control-item {
+    padding: 0 6px !important;
+    text-align: center !important;
+}
+
+.control-separator {
+    color: rgba(255, 255, 255, 0.6) !important;
+    margin: 0 3px !important;
+    font-weight: normal !important;
+}
+
+.control-key {
+    display: inline-block !important;
+    background-color: rgba(52, 152, 219, 0.4) !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    padding: 2px 6px !important;
+    margin-right: 4px !important;
+    box-shadow: 0 1px 0 rgba(52, 152, 219, 0.6) !important;
+    font-weight: bold !important;
+    font-size: 14px !important;
+}
+
+/* Responsive adjustments for controls */
+@media (max-width: 600px) {
+    .controls-container {
+        font-size: 13px !important;
+        padding: 2px 8px !important;
+    }
+    
+    .control-item {
+        padding: 0 4px !important;
+    }
+    
+    .control-separator {
+        margin: 0 3px !important;
+    }
+    
+    .control-key {
+        padding: 1px 3px !important;
+        font-size: 10px !important;
+    }
+}
+
+/* Install button in header */
+.game-header .install-button {
+    position: absolute !important;
+    top: 7px !important;
+    right: 10px !important;
+    margin: 0 !important;
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    min-width: auto !important;
+}
+
+/* Update install button styles for smaller screens */
+@media (max-width: 768px) {
+    .game-header .install-button {
+        top: 5px !important;
+        right: 10px !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+    }
+    
+    #soundToggle {
+        top: 8px;
+        right: 50px;
+        font-size: 18px;
+    }
+}
+
+/* Update header row alignment */
+.header-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 2px 0;
+    position: relative;
+}
+
+/* Add flex container for second row */
+.header-row:last-child {
+    justify-content: flex-start;
+    gap: 20px;
+}
+
+/* Score boxes alignment */
+.score-boxes {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 3px 12px !important; 
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    max-width: 100% !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+    text-align: left !important;
+}
+
+/* Controls container positioning */
+.controls-container {
+    margin-left: auto !important;
+}
+
+/* New container styles */
+.left-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-left: 0; /* Remove padding from container */
+}
+
+.right-content {
+    margin-left: auto;
+}
+
+/* Score boxes alignment */
+.score-boxes {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 3px 12px !important; 
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    max-width: 100% !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+    text-align: left !important;
+}
+
+/* Small screen adjustments */
+@media (max-width: 768px) {
+    .header-row:last-child {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .left-content {
+        width: 100%;
+        padding-left: 10px;
+    }
+    
+    .right-content {
+        width: 100%;
+        margin-left: 0;
+        display: flex;
+        justify-content: flex-end;
+        padding-right: 10px;
+    }
+    
+    .score-boxes, .controls-container {
+        width: auto;
+    }
+}
+
+.aligned-container {
+    display: flex;
+    /* This creates a container that aligns with the title-container */
+    width: auto;
+    padding-left: 0;
+    margin-left: 0;
+}
+
+.score-boxes {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 3px 0 !important;
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+    text-align: left !important;
 } 
