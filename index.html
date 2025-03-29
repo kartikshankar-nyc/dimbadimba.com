@@ -38,9 +38,14 @@
     <meta property="og:image" content="https://dimbadimba.com/icons/social-preview.png">
     <meta property="og:description" content="A fun endless runner game built with JavaScript">
     <meta property="og:site_name" content="Dimbadimba Pixel Runner">
+    <!-- Add Google AdSense verification meta tag -->
+    <meta name="google-adsense-account" content="ca-pub-6252458590674215">
 </head>
 <body>
     <div class="game-container">
+        <!-- Add header ad container -->
+        <div id="header-ad" class="ad-container"></div>
+        
         <!-- Game Header -->
         <div class="game-header">
             <h1 class="game-title">PIXEL RUNNER</h1>
@@ -86,6 +91,9 @@
                 <button id="restartButton">PLAY AGAIN</button>
             </div>
         </div>
+        
+        <!-- Add footer ad container -->
+        <div id="footer-ad" class="ad-container"></div>
     </div>
     
     <script src="script.js"></script>
@@ -167,6 +175,20 @@
                 document.body.classList.remove('fullscreen-mode');
             }
         }
+    </script>
+    
+    <!-- Add our new JavaScript files -->
+    <script type="module">
+        import adManager from './ads.js';
+        
+        // Initialize ads after the game is loaded
+        document.addEventListener('DOMContentLoaded', async function() {
+            await adManager.initialize();
+            
+            // Create ad slots
+            adManager.createAdSlot('header-ad', ADSENSE_CONFIG.adSlots.header);
+            adManager.createAdSlot('footer-ad', ADSENSE_CONFIG.adSlots.footer);
+        });
     </script>
 </body>
 </html> 
