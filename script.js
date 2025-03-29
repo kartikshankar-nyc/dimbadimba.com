@@ -17,6 +17,37 @@ const POWERUP_SIZE = 40; // Size of power-up items
 const POWERUP_DURATION = 7000; // Duration of power-ups in milliseconds
 const POWERUP_SPAWN_CHANCE = 0.15; // Chance of spawning a power-up when an obstacle is passed
 
+// Difficulty presets
+const DIFFICULTY_SETTINGS = {
+    easy: {
+        initialSpeed: 4,
+        speedIncrement: 0.00005,
+        obstacleInterval: 2000,
+        coinInterval: 2000,
+        powerupSpawnChance: 0.25,
+        gravity: 0.7,
+        jumpForce: -14
+    },
+    normal: {
+        initialSpeed: 5,
+        speedIncrement: 0.0001,
+        obstacleInterval: 1500,
+        coinInterval: 2500,
+        powerupSpawnChance: 0.15,
+        gravity: 0.8,
+        jumpForce: -15
+    },
+    hard: {
+        initialSpeed: 6,
+        speedIncrement: 0.00015,
+        obstacleInterval: 1200,
+        coinInterval: 3000,
+        powerupSpawnChance: 0.1,
+        gravity: 0.9,
+        jumpForce: -16
+    }
+};
+
 // Game variables
 let canvas, ctx;
 let gameState = {
@@ -42,6 +73,10 @@ let gameState = {
     backgroundSpeed: [0.2, 0.5, 1, 2], // Different speeds for each layer
     soundEnabled: true,
     dayMode: true, // Default to day mode
+    difficulty: 'normal', // Default difficulty
+    gravity: GRAVITY, // Current gravity (can be modified by difficulty)
+    jumpForce: JUMP_FORCE, // Current jump force (can be modified by difficulty)
+    powerupSpawnChance: POWERUP_SPAWN_CHANCE, // Current power-up spawn chance
     dimbadimba: { // Player character renamed to dimbadimba
         x: 80,
         y: 0,
@@ -70,6 +105,8 @@ let gameState = {
 let startScreen, gameOverScreen, startButton, restartButton;
 let currentScoreElement, highScoreElement, finalScoreElement;
 let soundToggleBtn, dayModeBtn, nightModeBtn;
+let easyModeBtn, normalModeBtn, hardModeBtn; // Difficulty buttons
+let difficultyDisplayElement; // Element to display current difficulty
 let powerupIndicator; // UI element to show active power-ups
 
 // Sprites and assets
@@ -203,6 +240,12 @@ document.addEventListener('DOMContentLoaded', function() {
     soundToggleBtn = document.getElementById('soundToggle');
     dayModeBtn = document.getElementById('dayModeBtn');
     nightModeBtn = document.getElementById('nightModeBtn');
+    difficultyDisplayElement = document.getElementById('difficultyDisplay');
+    
+    // Get difficulty buttons
+    easyModeBtn = document.getElementById('easyModeBtn');
+    normalModeBtn = document.getElementById('normalModeBtn');
+    hardModeBtn = document.getElementById('hardModeBtn');
     
     // Create power-up indicator element
     createPowerupIndicator();
@@ -226,6 +269,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (modePref !== null) {
         gameState.dayMode = modePref === 'true';
         updateModeButtons();
+    }
+    
+    // Load difficulty preference from local storage
+    const difficultyPref = localStorage.getItem('pixelRunnerDifficulty');
+    if (difficultyPref !== null) {
+        gameState.difficulty = difficultyPref;
+        updateDifficultyButtons();
     }
     
     // Create sprites
@@ -976,14 +1026,20 @@ function toggleDayNightMode(isDayMode) {
 }
 
 function updateModeButtons() {
-    if (dayModeBtn && nightModeBtn) {
-        if (gameState.dayMode) {
-            dayModeBtn.classList.add('selected');
-            nightModeBtn.classList.remove('selected');
-        } else {
-            dayModeBtn.classList.remove('selected');
-            nightModeBtn.classList.add('selected');
-        }
+    // Check if the buttons exist before trying to update them
+    if (!dayModeBtn || !nightModeBtn) {
+        console.warn("Mode buttons not found");
+        return;
+    }
+    
+    // Update mode button selection
+    dayModeBtn.classList.remove('selected');
+    nightModeBtn.classList.remove('selected');
+    
+    if (gameState.dayMode) {
+        dayModeBtn.classList.add('selected');
+    } else {
+        nightModeBtn.classList.add('selected');
     }
 }
 
@@ -1589,6 +1645,61 @@ function setupEventListeners() {
         // Redraw the game to reflect new dimensions
         drawGame();
     });
+    
+    // Add event listeners for the difficulty buttons
+    easyModeBtn.addEventListener('click', function() {
+        gameState.difficulty = 'easy';
+        updateDifficultyButtons();
+        localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
+    });
+    
+    normalModeBtn.addEventListener('click', function() {
+        gameState.difficulty = 'normal';
+        updateDifficultyButtons();
+        localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
+    });
+    
+    hardModeBtn.addEventListener('click', function() {
+        gameState.difficulty = 'hard';
+        updateDifficultyButtons();
+        localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
+    });
+}
+
+function updateDifficultyButtons() {
+    // Check if the buttons exist before trying to update them
+    if (!easyModeBtn || !normalModeBtn || !hardModeBtn) {
+        console.warn("Difficulty buttons not found");
+        return;
+    }
+    
+    // Remove 'selected' class from all buttons
+    easyModeBtn.classList.remove('selected');
+    normalModeBtn.classList.remove('selected');
+    hardModeBtn.classList.remove('selected');
+    
+    // Add 'selected' class to the appropriate button based on current difficulty
+    switch(gameState.difficulty) {
+        case 'easy':
+            easyModeBtn.classList.add('selected');
+            if (difficultyDisplayElement) difficultyDisplayElement.textContent = "Easy";
+            break;
+        case 'normal':
+            normalModeBtn.classList.add('selected');
+            if (difficultyDisplayElement) difficultyDisplayElement.textContent = "Normal";
+            break;
+        case 'hard':
+            hardModeBtn.classList.add('selected');
+            if (difficultyDisplayElement) difficultyDisplayElement.textContent = "Hard";
+            break;
+        default:
+            // Default to normal if unknown difficulty
+            normalModeBtn.classList.add('selected');
+            if (difficultyDisplayElement) difficultyDisplayElement.textContent = "Normal";
+            // Update game state to match
+            gameState.difficulty = 'normal';
+            break;
+    }
 }
 
 function startGame() {
@@ -1602,6 +1713,22 @@ function startGame() {
         // Continue with game even if audio fails
         gameState.soundEnabled = false;
         updateSoundToggleButton();
+    }
+    
+    // Apply difficulty settings first - moved up to ensure it's applied before game starts
+    try {
+        applyDifficultySettings();
+    } catch (e) {
+        console.error("Error applying difficulty settings:", e);
+        // Fall back to normal difficulty if there's an error
+        gameState.difficulty = 'normal';
+        // Apply default values manually if needed
+        gameState.speed = INITIAL_SPEED;
+        gameState.obstacleInterval = 1500;
+        gameState.coinInterval = 2500;
+        gameState.gravity = GRAVITY;
+        gameState.jumpForce = JUMP_FORCE;
+        gameState.powerupSpawnChance = POWERUP_SPAWN_CHANCE;
     }
     
     resetGame();
@@ -1633,6 +1760,22 @@ function restartGame() {
         initializeAudio();
     }
     
+    // Apply difficulty settings first - similar to startGame
+    try {
+        applyDifficultySettings();
+    } catch (e) {
+        console.error("Error applying difficulty settings on restart:", e);
+        // Fall back to normal difficulty if there's an error
+        gameState.difficulty = 'normal';
+        // Apply default values manually if needed
+        gameState.speed = INITIAL_SPEED;
+        gameState.obstacleInterval = 1500;
+        gameState.coinInterval = 2500;
+        gameState.gravity = GRAVITY;
+        gameState.jumpForce = JUMP_FORCE;
+        gameState.powerupSpawnChance = POWERUP_SPAWN_CHANCE;
+    }
+    
     resetGame();
     gameState.running = true;
     gameOverScreen.classList.add('hidden');
@@ -1659,8 +1802,12 @@ function resetGame() {
     gameState.dimbadimba.armRotation = 0;
     gameState.dimbadimba.isArmRotating = false;
     gameState.dimbadimba.armRotationCycles = 0;
+    
+    // Store current difficulty settings before resetting
+    const currentDifficulty = gameState.difficulty;
+    
+    // Reset to initial values based on difficulty (will be properly set by applyDifficultySettings)
     gameState.speed = INITIAL_SPEED;
-    gameState.score = 0;
     gameState.obstacles = [];
     gameState.coins = [];
     gameState.powerups = [];
@@ -1673,6 +1820,9 @@ function resetGame() {
     gameState.scoreMultiplier = 1;
     gameState.paused = false; // Make sure the game isn't paused
     
+    // Reset score to 0
+    gameState.score = 0;
+    
     // Clear power-up indicator
     if (powerupIndicator) {
         powerupIndicator.innerHTML = '';
@@ -1682,6 +1832,9 @@ function resetGame() {
     sounds.backgroundMusic.stop();
     
     updateScore();
+    
+    // Reset to difficulty settings
+    applyDifficultySettings();
 }
 
 // Add a pause toggle cooldown to prevent rapid toggling
@@ -1709,16 +1862,21 @@ function togglePause() {
 }
 
 function jump() {
-    gameState.dimbadimba.velocityY = JUMP_FORCE;
-    gameState.dimbadimba.jumping = true;
-    
-    // Play jump sound
-    sounds.jump();
+    if (!gameState.dimbadimba.jumping) {
+        gameState.dimbadimba.velocityY = gameState.jumpForce;
+        gameState.dimbadimba.jumping = true;
+        playSound('jump');
+        
+        // Start arm rotation animation on jump
+        gameState.dimbadimba.isArmRotating = true;
+        gameState.dimbadimba.armRotation = 0;
+        gameState.dimbadimba.armRotationCycles = 0;
+    }
 }
 
 function updatePlayer(deltaTime) {
     // Apply gravity
-    gameState.dimbadimba.velocityY += GRAVITY;
+    gameState.dimbadimba.velocityY += gameState.gravity;
     gameState.dimbadimba.y += gameState.dimbadimba.velocityY;
     
     // Ground collision
@@ -3068,4 +3226,49 @@ window.addEventListener('orientationchange', function() {
     // Small delay to allow the orientation change to complete
     setTimeout(ensureStartButtonVisibility, 300);
 });
+
+function applyDifficultySettings() {
+    try {
+        // Make sure we have a valid difficulty setting
+        if (!gameState.difficulty || !DIFFICULTY_SETTINGS[gameState.difficulty]) {
+            console.warn("Invalid difficulty setting: " + gameState.difficulty + ". Falling back to normal.");
+            gameState.difficulty = 'normal';
+        }
+        
+        const settings = DIFFICULTY_SETTINGS[gameState.difficulty];
+        
+        // Apply the settings to the game
+        gameState.speed = settings.initialSpeed;
+        gameState.obstacleInterval = settings.obstacleInterval;
+        gameState.coinInterval = settings.coinInterval;
+        gameState.powerupSpawnChance = settings.powerupSpawnChance;
+        gameState.gravity = settings.gravity;
+        gameState.jumpForce = settings.jumpForce;
+        
+        // Update SPEED_INCREMENT for game progression
+        SPEED_INCREMENT = settings.speedIncrement;
+        
+        console.log(`Applied ${gameState.difficulty} difficulty settings:`, settings);
+        
+        // Also update the display if it exists
+        if (difficultyDisplayElement) {
+            let displayText = "Normal";
+            switch(gameState.difficulty) {
+                case 'easy': displayText = "Easy"; break;
+                case 'normal': displayText = "Normal"; break;
+                case 'hard': displayText = "Hard"; break;
+            }
+            difficultyDisplayElement.textContent = displayText;
+        }
+    } catch (e) {
+        console.error("Error in applyDifficultySettings:", e);
+        // Apply safe defaults
+        gameState.speed = INITIAL_SPEED;
+        gameState.obstacleInterval = 1500;
+        gameState.coinInterval = 2500;
+        gameState.gravity = GRAVITY;
+        gameState.jumpForce = JUMP_FORCE;
+        gameState.powerupSpawnChance = POWERUP_SPAWN_CHANCE;
+    }
+}
   

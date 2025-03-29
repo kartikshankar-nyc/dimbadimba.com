@@ -52,6 +52,7 @@
             <div class="score-boxes">
                 <div class="score-box">Score: <span id="currentScore">0</span></div>
                 <div class="score-box">High Score: <span id="highScore">0</span></div>
+                <div class="score-box">Difficulty: <span id="difficultyDisplay">Normal</span></div>
             </div>
             <div class="controls-compact">
                 <div class="controls-item"><span class="controls-key">Space</span> Jump</div>
@@ -72,13 +73,26 @@
                     <div id="dimbadimbaDisplay" class="character-display"></div>
                     <p class="game-description">Journey with dimbadimba, the bouncy pixel hero! Leap over obstacles, grab those coins, and set a new high score in this fast-paced adventure!</p>
                 </div>
-                <div class="mode-selection">
-                    <p>Select Mode:</p>
-                    <div class="mode-buttons">
-                        <button id="dayModeBtn" class="selected">Day Mode</button>
-                        <button id="nightModeBtn">Night Mode</button>
+                
+                <div class="game-options-container">
+                    <div class="option-group">
+                        <h3>Mode</h3>
+                        <div class="icon-toggles">
+                            <button id="dayModeBtn" class="icon-toggle selected" aria-label="Day Mode">☀️</button>
+                            <button id="nightModeBtn" class="icon-toggle" aria-label="Night Mode">🌙</button>
+                        </div>
+                    </div>
+                    
+                    <div class="option-group">
+                        <h3>Difficulty</h3>
+                        <div class="icon-toggles">
+                            <button id="easyModeBtn" class="icon-toggle" aria-label="Easy Mode">🟢</button>
+                            <button id="normalModeBtn" class="icon-toggle selected" aria-label="Normal Mode">🟡</button>
+                            <button id="hardModeBtn" class="icon-toggle" aria-label="Hard Mode">🔴</button>
+                        </div>
                     </div>
                 </div>
+                
                 <button id="startButton">Start Game</button>
                 <p class="instructions">Press SPACE to jump, P to pause, M to toggle sound</p>
             </div>
