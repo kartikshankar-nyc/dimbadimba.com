@@ -1615,4 +1615,18 @@ html, body {
 
 #updateNow:hover {
     background-color: #ff6b4a;
+}
+
+/* Styling for lives display */
+#livesDisplay {
+    color: #ff4f4f !important;
+    font-weight: bold !important;
+    position: relative;
+    padding-left: 5px;
+}
+
+#livesDisplay::before {
+    content: "❤️";
+    margin-right: 3px;
+    font-size: 0.9em;
 } 

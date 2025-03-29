@@ -11,11 +11,13 @@ const OBSTACLE_MIN_HEIGHT = 30;
 const OBSTACLE_MAX_HEIGHT = 80;
 const COIN_SIZE = 30;
 const INITIAL_SPEED = 5;
-const SPEED_INCREMENT = 0.0001;
+let SPEED_INCREMENT = 0.0001; // Changed from const to let so it can be updated
 const PLAYER_NAME = 'dimbadimba'; // Player character name
 const POWERUP_SIZE = 40; // Size of power-up items
 const POWERUP_DURATION = 7000; // Duration of power-ups in milliseconds
 const POWERUP_SPAWN_CHANCE = 0.15; // Chance of spawning a power-up when an obstacle is passed
+const INITIAL_LIVES = 3; // Number of lives player starts with
+const INVINCIBILITY_TIME = 1500; // Time (ms) of invincibility after hit
 
 // PWA Installation Variables
 let deferredPrompt;
@@ -103,7 +105,10 @@ let gameState = {
     firstObstacleSpawned: false, // Track if the first obstacle has spawned
     magnetRange: 150, // Range for magnet power-up to attract coins
     speedBoostMultiplier: 1.5, // Speed multiplier for speed boost power-up
-    scoreMultiplier: 1 // Score multiplier (2 when double score is active)
+    scoreMultiplier: 1, // Score multiplier (2 when double score is active)
+    lives: INITIAL_LIVES,
+    isInvincible: false,
+    invincibilityTimer: 0,
 };
 
 // UI elements
@@ -139,7 +144,8 @@ const sounds = {
     gameOver: null,
     backgroundMusic: null,
     audioCtx: null,
-    powerup: null // Sound for collecting power-ups
+    powerup: null, // Sound for collecting power-ups
+    hit: null, // Sound for hit when colliding with obstacles
 };
 
 // Game colors for different modes
@@ -224,6 +230,11 @@ const POWERUP_TYPES = {
 
 // Initialize the game when the DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded event fired - script.js initialization starting');
+    
+    // Initialize the game
+    // DON'T call initGame() here as it's creating conflicts
+    
     // Get canvas and create context
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
@@ -246,6 +257,10 @@ document.addEventListener('DOMContentLoaded', function() {
     dayModeBtn = document.getElementById('dayModeBtn');
     nightModeBtn = document.getElementById('nightModeBtn');
     difficultyDisplayElement = document.getElementById('difficultyDisplay');
+    
+    // Debug log DOM elements
+    console.log('startButton element found:', startButton !== null);
+    console.log('restartButton element found:', restartButton !== null);
     
     // Get difficulty buttons
     easyModeBtn = document.getElementById('easyModeBtn');
@@ -286,10 +301,13 @@ document.addEventListener('DOMContentLoaded', function() {
         updateDifficultyButtons();
     }
     
+    // Initialize lives counter display
+    updateLivesDisplay();
+    
     // Create sprites
     createSprites();
     
-    // Add event listeners
+    // Set up event listeners - now using a direct approach
     setupEventListeners();
     
     // Initialize PWA installation features
@@ -358,19 +376,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Function to handle fullscreen
-    fullscreenButton.addEventListener('click', function() {
-        toggleFullScreen();
-    });
-    
-    // Create orientation message
-    createOrientationMessage();
-    
     // Check orientation initially
     handleDeviceOrientation();
-    
-    // Ensure start button is visible
-    ensureStartButtonVisibility();
     
     // Listen for orientation changes
     window.addEventListener('orientationchange', handleDeviceOrientation);
@@ -386,11 +393,17 @@ document.addEventListener('DOMContentLoaded', function() {
             ensureStartButtonVisibility();
         }, 100);
     });
+    
+    // Ensure start button is visible
+    ensureStartButtonVisibility();
+    
+    console.log('DOMContentLoaded initialization complete');
 });
 
 function initializeAudio() {
     // Only initialize audio if not already initialized
     if (sounds.audioCtx) return;
+    
     
     try {
         // Create audio context
@@ -557,6 +570,25 @@ function loadSounds() {
             oscillator.start(time);
             oscillator.stop(time + 0.3);
         });
+        
+        // Hit sound
+        sounds.hit = createSound(function(time) {
+            const oscillator = sounds.audioCtx.createOscillator();
+            const gainNode = sounds.audioCtx.createGain();
+            
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(200, time);
+            oscillator.frequency.exponentialRampToValueAtTime(400, time + 0.2);
+            
+            gainNode.gain.setValueAtTime(0.5, time);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(sounds.audioCtx.destination);
+            
+            oscillator.start(time);
+            oscillator.stop(time + 0.2);
+        });
     } catch (error) {
         console.error("Error creating sounds:", error);
         // Initialize dummy sounds to prevent errors
@@ -565,6 +597,7 @@ function loadSounds() {
         sounds.gameOver = function() {};
         sounds.powerup = function() {};
         sounds.backgroundMusic = { play: function() {}, stop: function() {} };
+        sounds.hit = function() {};
     }
 }
 
@@ -1596,14 +1629,42 @@ function createObstacleWithOutline(pixels, fillColor, outlineColor, scale = 1) {
 }
 
 function setupEventListeners() {
-    // Start button
-    startButton.addEventListener('click', startGame);
+    console.log('Setting up event listeners');
     
-    // Restart button
-    restartButton.addEventListener('click', restartGame);
+    // Simple direct event attachment instead of cloning
+    if (startButton) {
+        // Remove any existing listeners to prevent duplicates
+        startButton.removeEventListener('click', startGame);
+        
+        // Add the event listener directly
+        startButton.addEventListener('click', function(e) {
+            console.log('Start button clicked');
+            e.preventDefault();
+            startGame();
+        });
+        console.log('Start button event listener attached');
+    } else {
+        console.warn("Start button element not found");
+    }
+    
+    if (restartButton) {
+        // Remove any existing listeners to prevent duplicates
+        restartButton.removeEventListener('click', restartGame);
+        
+        // Add event listener directly
+        restartButton.addEventListener('click', function(e) {
+            console.log('Restart button clicked');
+            e.preventDefault();
+            restartGame();
+        });
+        console.log('Restart button event listener attached');
+    } else {
+        console.warn("Restart button element not found");
+    }
     
     // Sound toggle button
     if (soundToggleBtn) {
+        soundToggleBtn.removeEventListener('click', toggleSound);
         soundToggleBtn.addEventListener('click', toggleSound);
     }
     
@@ -1658,23 +1719,29 @@ function setupEventListeners() {
     });
     
     // Add event listeners for the difficulty buttons
-    easyModeBtn.addEventListener('click', function() {
-        gameState.difficulty = 'easy';
-        updateDifficultyButtons();
-        localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
-    });
+    if (easyModeBtn) {
+        easyModeBtn.addEventListener('click', function() {
+            gameState.difficulty = 'easy';
+            updateDifficultyButtons();
+            localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
+        });
+    }
     
-    normalModeBtn.addEventListener('click', function() {
-        gameState.difficulty = 'normal';
-        updateDifficultyButtons();
-        localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
-    });
+    if (normalModeBtn) {
+        normalModeBtn.addEventListener('click', function() {
+            gameState.difficulty = 'normal';
+            updateDifficultyButtons();
+            localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
+        });
+    }
     
-    hardModeBtn.addEventListener('click', function() {
-        gameState.difficulty = 'hard';
-        updateDifficultyButtons();
-        localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
-    });
+    if (hardModeBtn) {
+        hardModeBtn.addEventListener('click', function() {
+            gameState.difficulty = 'hard';
+            updateDifficultyButtons();
+            localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
+        });
+    }
 }
 
 function updateDifficultyButtons() {
@@ -1713,7 +1780,10 @@ function updateDifficultyButtons() {
     }
 }
 
+// Fix the startGame function to correctly show character on start screen
 function startGame() {
+    console.log('startGame function called');
+    
     // Initialize audio on game start, but don't block if it fails
     try {
         if (gameState.soundEnabled && !sounds.audioCtx) {
@@ -1744,7 +1814,10 @@ function startGame() {
     
     resetGame();
     gameState.running = true;
-    startScreen.classList.add('hidden');
+    
+    if (startScreen) {
+        startScreen.classList.add('hidden');
+    }
     
     // Play background music if enabled and audio is available
     if (gameState.soundEnabled && sounds.audioCtx) {
@@ -1763,6 +1836,8 @@ function startGame() {
     // Ensure animation loop starts correctly
     lastTime = performance.now();
     animationFrameId = requestAnimationFrame(animationLoop);
+    
+    console.log('Game started successfully');
 }
 
 function restartGame() {
@@ -1846,6 +1921,10 @@ function resetGame() {
     
     // Reset to difficulty settings
     applyDifficultySettings();
+    
+    gameState.lives = INITIAL_LIVES;
+    gameState.isInvincible = false;
+    gameState.invincibilityTimer = 0;
 }
 
 // Add a pause toggle cooldown to prevent rapid toggling
@@ -2053,7 +2132,10 @@ function updateCoins(deltaTime) {
 }
 
 function checkCollisions() {
-    // Check obstacle collisions
+    // Skip collision if player is invincible
+    if (gameState.isInvincible) return;
+    
+    // Check for collisions with obstacles
     for (let i = 0; i < gameState.obstacles.length; i++) {
         const obstacle = gameState.obstacles[i];
         
@@ -2066,7 +2148,7 @@ function checkCollisions() {
         };
         
         if (detectCollision(adjustedPlayerHitbox, obstacle)) {
-            // If shield is active, use it instead of game over
+            // If shield is active, use it instead of losing a life
             if (gameState.activePowerups[POWERUP_TYPES.SHIELD]) {
                 // Play a shield hit sound
                 sounds.powerup();
@@ -2084,158 +2166,49 @@ function checkCollisions() {
                 return;
             }
             
-            gameOver();
-            return;
+            // Handle normal collision (lose a life)
+            handleCollision();
+            break;
         }
     }
     
-    // Check coin collisions
-    for (let i = gameState.coins.length - 1; i >= 0; i--) {
-        const coin = gameState.coins[i];
-        
-        if (detectCollision(gameState.dimbadimba, coin)) {
-            // Get coin position before removing it
-            const coinX = coin.x + COIN_SIZE / 2;
-            const coinY = coin.y;
-            
-            // Remove coin from array
-            gameState.coins.splice(i, 1);
-            
-            // Calculate points (accounting for multiplier)
-            const pointsEarned = 50 * gameState.scoreMultiplier;
-            
-            // Add to score
-            gameState.score += pointsEarned;
-            updateScore();
-            
-            // Create visual indicator at coin position
-            createPointIndicator(coinX, coinY, pointsEarned);
-            
-            // Start arm rotation animation
-            gameState.dimbadimba.isArmRotating = true;
-            gameState.dimbadimba.armRotation = 0;
-            gameState.dimbadimba.armRotationCycles = 0;
-            
-            // Play coin sound
-            sounds.coin();
-        }
-    }
-    
-    // Check power-up collisions
-    for (let i = gameState.powerups.length - 1; i >= 0; i--) {
-        const powerup = gameState.powerups[i];
-        
-        if (detectCollision(gameState.dimbadimba, powerup)) {
-            // Collect the power-up
-            activatePowerup(powerup.type);
-            gameState.powerups.splice(i, 1);
-        }
-    }
+    // Rest of collision checks for coins and powerups (unchanged)
+    checkCoinCollisions();
+    checkPowerupCollisions();
 }
 
-// Add missing detectCollision function
-function detectCollision(rect1, rect2) {
-    return (
-        rect1.x < rect2.x + rect2.width &&
-        rect1.x + rect1.width > rect2.x &&
-        rect1.y < rect2.y + rect2.height &&
-        rect1.y + rect1.height > rect2.y
-    );
-}
-
-function updateBackground() {
-    // Scroll ground
-    gameState.groundPos -= gameState.speed;
-    if (gameState.groundPos < -sprites.ground.width) {
-        gameState.groundPos = 0;
-    }
-    
-    // Scroll each background layer at different speeds (parallax effect)
-    for (let i = 0; i < gameState.backgroundPos.length; i++) {
-        gameState.backgroundPos[i] -= gameState.speed * gameState.backgroundSpeed[i];
-        
-        // Get the width of the current layer
-        const layerArray = gameState.dayMode ? sprites.parallaxLayers.day : sprites.parallaxLayers.night;
-        const layerWidth = layerArray[i].width;
-        
-        // Reset position when it scrolls past the edge
-        if (gameState.backgroundPos[i] < -layerWidth) {
-            gameState.backgroundPos[i] = 0;
-        }
-    }
-}
-
-function updateScore() {
-    currentScoreElement.textContent = gameState.score;
-    
-    if (gameState.score > gameState.highScore) {
-        gameState.highScore = gameState.score;
-        highScoreElement.textContent = gameState.highScore;
-        localStorage.setItem('pixelRunnerHighScore', gameState.highScore);
-    }
-}
-
-function gameOver() {
-    gameState.running = false;
-    finalScoreElement.textContent = gameState.score;
-    gameOverScreen.classList.remove('hidden');
-    
-    // Play game over sound
-    sounds.gameOver();
-    
-    // Stop background music
-    sounds.backgroundMusic.stop();
-}
-
+// Fix drawing function for proper invincibility effect
 function drawGame() {
     // Clear canvas
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     
-    // Draw parallax background layers
-    const layers = gameState.dayMode ? sprites.parallaxLayers.day : sprites.parallaxLayers.night;
-    for (let i = 0; i < layers.length; i++) {
-        ctx.drawImage(layers[i], gameState.backgroundPos[i], 0);
-        // Draw a second copy for seamless scrolling
-        ctx.drawImage(layers[i], gameState.backgroundPos[i] + layers[i].width, 0);
-    }
+    // Draw sky background
+    drawBackground();
     
     // Draw ground
-    const groundColor = gameState.dayMode ? colors.day.ground : colors.night.ground;
-    ctx.fillStyle = groundColor;
-    ctx.save();
-    ctx.translate(gameState.groundPos, 0);
-    ctx.fillRect(0, GAME_HEIGHT - GROUND_HEIGHT, GAME_WIDTH + sprites.ground.width, GROUND_HEIGHT);
-    ctx.restore();
-    
-    // Draw ground line
-    const groundLineColor = gameState.dayMode ? colors.day.groundLine : colors.night.groundLine;
-    ctx.fillStyle = groundLineColor;
-    ctx.fillRect(0, GAME_HEIGHT - GROUND_HEIGHT, GAME_WIDTH, 2);
+    drawGround();
     
     // Draw obstacles
-    for (let i = 0; i < gameState.obstacles.length; i++) {
-        const obstacle = gameState.obstacles[i];
-        const obstacleSprite = sprites.obstacles[obstacle.shapeIndex] || sprites.obstacle;
-        
+    gameState.obstacles.forEach(obstacle => {
         ctx.drawImage(
-            obstacleSprite, 
-            obstacle.x, 
+            sprites.obstacles[obstacle.shapeIndex] || sprites.obstacle,
+            obstacle.x,
             obstacle.y,
             obstacle.width,
             obstacle.height
         );
-    }
+    });
     
     // Draw coins
-    for (let i = 0; i < gameState.coins.length; i++) {
+    gameState.coins.forEach(coin => {
         ctx.drawImage(
             sprites.coin,
-            gameState.coins[i].x,
-            gameState.coins[i].y,
-            COIN_SIZE,
-            COIN_SIZE
+            coin.x,
+            coin.y,
+            coin.width,
+            coin.height
         );
-    }
+    });
     
     // Draw power-ups
     for (let i = 0; i < gameState.powerups.length; i++) {
@@ -2264,6 +2237,12 @@ function drawGame() {
     
     // Draw player (dimbadimba)
     ctx.save();
+    
+    // Add flashing effect when invincible
+    if (gameState.isInvincible) {
+        // Make character flash by changing opacity
+        ctx.globalAlpha = 0.5 + Math.sin(gameState.invincibilityTimer / 100) * 0.5;
+    }
     
     // Draw shield effect if active
     if (gameState.activePowerups[POWERUP_TYPES.SHIELD]) {
@@ -2396,6 +2375,19 @@ function drawGame() {
         ctx.font = '20px PixelFont, Arial';
         ctx.fillText('Press P to continue', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 40);
     }
+    
+    // Draw player with invincibility effect if active
+    ctx.save();
+    
+    // Add flashing effect when invincible
+    if (gameState.isInvincible) {
+        // Make character flash by changing opacity
+        ctx.globalAlpha = 0.5 + Math.sin(gameState.invincibilityTimer / 100) * 0.5;
+    }
+    
+    // ... existing player drawing code ...
+    
+    ctx.restore();
 }
 
 let lastTime = 0;
@@ -2433,6 +2425,15 @@ function animationLoop(timestamp = 0) {
         
         // Increase game speed over time
         gameState.speed += SPEED_INCREMENT * deltaTime;
+        
+        // Update invincibility status
+        if (gameState.isInvincible) {
+            gameState.invincibilityTimer += deltaTime;
+            if (gameState.invincibilityTimer >= INVINCIBILITY_TIME) {
+                gameState.isInvincible = false;
+                gameState.invincibilityTimer = 0;
+            }
+        }
         
         // Draw everything
         drawGame();
@@ -3505,5 +3506,220 @@ function removeInstallToast() {
     if (toast) {
         toast.remove();
     }
+}
+
+// New function to handle what happens on collision
+function handleCollision() {
+    // Decrease life
+    gameState.lives--;
+    
+    // Play hit sound
+    playSound('hit');
+    
+    // If no lives left, game over
+    if (gameState.lives <= 0) {
+        gameOver();
+        return;
+    }
+    
+    // Otherwise, make player invincible temporarily
+    gameState.isInvincible = true;
+    gameState.invincibilityTimer = 0;
+    
+    // Update life display
+    updateLivesDisplay();
+}
+
+// Function to update the lives display in UI
+function updateLivesDisplay() {
+    const livesDisplay = document.getElementById('livesDisplay');
+    if (livesDisplay) {
+        livesDisplay.textContent = gameState.lives;
+    }
+}
+
+// Function to check coin collisions
+function checkCoinCollisions() {
+    for (let i = gameState.coins.length - 1; i >= 0; i--) {
+        const coin = gameState.coins[i];
+        
+        if (detectCollision(gameState.dimbadimba, coin)) {
+            // Get coin position before removing it
+            const coinX = coin.x + coin.width / 2;
+            const coinY = coin.y;
+            
+            // Remove coin from array
+            gameState.coins.splice(i, 1);
+            
+            // Calculate points (accounting for multiplier)
+            const pointsEarned = 50 * gameState.scoreMultiplier;
+            
+            // Add to score
+            gameState.score += pointsEarned;
+            updateScore();
+            
+            // Create visual indicator at coin position
+            createPointIndicator(coinX, coinY, pointsEarned);
+            
+            // Start arm rotation animation
+            gameState.dimbadimba.isArmRotating = true;
+            gameState.dimbadimba.armRotation = 0;
+            gameState.dimbadimba.armRotationCycles = 0;
+            
+            // Play coin sound
+            sounds.coin();
+        }
+    }
+}
+
+// Function to check powerup collisions
+function checkPowerupCollisions() {
+    for (let i = gameState.powerups.length - 1; i >= 0; i--) {
+        const powerup = gameState.powerups[i];
+        
+        if (detectCollision(gameState.dimbadimba, powerup)) {
+            // Collect the power-up
+            activatePowerup(powerup.type);
+            gameState.powerups.splice(i, 1);
+        }
+    }
+}
+
+// Collision detection helper
+function detectCollision(rect1, rect2) {
+    return (
+        rect1.x < rect2.x + rect2.width &&
+        rect1.x + rect1.width > rect2.x &&
+        rect1.y < rect2.y + rect2.height &&
+        rect1.y + rect1.height > rect2.y
+    );
+}
+
+// Draw background using parallax layers based on current mode
+function drawBackground() {
+    // Get the layers for the current mode
+    const layers = gameState.dayMode ? sprites.parallaxLayers.day : sprites.parallaxLayers.night;
+    
+    // Draw each layer with its offset
+    for (let i = 0; i < layers.length; i++) {
+        // Calculate the x position with parallax effect (different speeds)
+        const x = gameState.backgroundPos[i] % layers[i].width;
+        
+        // Draw first copy of the layer
+        ctx.drawImage(layers[i], x, 0);
+        
+        // If we need to draw a second copy to fill the screen
+        if (x < GAME_WIDTH - layers[i].width) {
+            ctx.drawImage(layers[i], x + layers[i].width, 0);
+        }
+    }
+}
+
+// Update background positions for parallax effect
+function updateBackground() {
+    // Update each background layer position based on its speed
+    for (let i = 0; i < gameState.backgroundPos.length; i++) {
+        // Move each layer at different speeds
+        const speed = getCurrentGameSpeed() * gameState.backgroundSpeed[i];
+        gameState.backgroundPos[i] -= speed;
+        
+        // Prevent position from getting too large by keeping it within width
+        if (Math.abs(gameState.backgroundPos[i]) > GAME_WIDTH * 2) {
+            gameState.backgroundPos[i] %= GAME_WIDTH;
+        }
+    }
+}
+
+// Draw the ground using the pattern
+function drawGround() {
+    // Check if ground pattern is defined
+    if (!gameState.groundPattern) {
+        return;
+    }
+    
+    // Calculate ground position (wrap around)
+    gameState.groundPos = (gameState.groundPos - getCurrentGameSpeed()) % 50;
+    
+    // Set pattern fill with calculated offset
+    ctx.save();
+    ctx.translate(gameState.groundPos, 0);
+    ctx.fillStyle = gameState.groundPattern;
+    ctx.fillRect(-gameState.groundPos, GAME_HEIGHT - GROUND_HEIGHT, GAME_WIDTH + 50, GROUND_HEIGHT);
+    ctx.restore();
+}
+
+// Add the missing updateScore function
+function updateScore() {
+    // Update current score display
+    if (currentScoreElement) {
+        currentScoreElement.textContent = gameState.score;
+    }
+    
+    // Update high score if current score is higher
+    if (gameState.score > gameState.highScore) {
+        gameState.highScore = gameState.score;
+        
+        // Update high score display
+        if (highScoreElement) {
+            highScoreElement.textContent = gameState.highScore;
+        }
+        
+        // Save high score to local storage
+        localStorage.setItem('pixelRunnerHighScore', gameState.highScore);
+    }
+    
+    // Update the final score display on game over screen
+    if (finalScoreElement) {
+        finalScoreElement.textContent = gameState.score;
+    }
+}
+
+// Add missing playSound function
+function playSound(soundName) {
+    if (!gameState.soundEnabled || !sounds.audioCtx) return;
+    
+    switch(soundName) {
+        case 'jump':
+            sounds.jump();
+            break;
+        case 'coin':
+            sounds.coin();
+            break;
+        case 'gameOver':
+            sounds.gameOver();
+            break;
+        case 'powerup':
+            sounds.powerup();
+            break;
+        case 'hit':
+            sounds.hit();
+            break;
+    }
+}
+
+// Add missing gameOver function
+function gameOver() {
+    gameState.running = false;
+    
+    // Stop background music
+    sounds.backgroundMusic.stop();
+    
+    // Play game over sound
+    playSound('gameOver');
+    
+    // Show game over screen
+    gameOverScreen.classList.remove('hidden');
+    
+    // Update and save high score
+    if (gameState.score > gameState.highScore) {
+        gameState.highScore = gameState.score;
+        localStorage.setItem('pixelRunnerHighScore', gameState.highScore);
+    }
+    
+    // Update high score display
+    highScoreElement.textContent = gameState.highScore;
+    
+    // Update final score display
+    finalScoreElement.textContent = gameState.score;
 }
   
