@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- 
+    DEVELOPMENT VERSION WITH CACHE DEBUGGING TOOLS
+    DO NOT DEPLOY THIS FILE TO PRODUCTION!
+    
+    This file includes additional debugging tools for development use.
+    For production, use the regular index.html file.
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <!-- Development mode - always bypass cache -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="Join dimbadimba on an endless adventure. Jump over obstacles, collect coins, and set high scores in this fast-paced pixel art runner game.">
+    <title>Dimbadimba - DEV MODE</title>
+    <link rel="stylesheet" href="style.css?v=dev-mode">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Development styles -->
+    <style>
+        /* Development mode indicator */
+        body::before {
+            content: "DEV MODE";
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: red;
+            color: white;
+            padding: 2px 5px;
+            font-size: 10px;
+            z-index: 9999;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Include the original content from index.html here -->
+    <!-- This is a placeholder - you would copy all the body content from index.html -->
+    <div class="game-container">
+        <!-- Game content goes here - copy from index.html -->
+    </div>
+    
+    <!-- Include the script and service worker registration - change to dev versions -->
+    <script src="script.js?v=dev-mode"></script>
+    
+    <!-- Add cache debugging tools -->
+    <script src="debug-cache.js"></script>
+    
+    <!-- Modified service worker registration for development -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Add a random parameter to force new service worker every time in dev mode
+                const swUrl = './service-worker.js?dev=' + Math.random();
+                
+                navigator.serviceWorker.register(swUrl)
+                    .then(registration => {
+                        console.log('[DEV MODE] Service Worker registered');
+                        
+                        // Auto-update for development
+                        setInterval(() => {
+                            registration.update();
+                            console.log('[DEV MODE] Checking for SW updates...');
+                        }, 10000); // Check every 10 seconds in dev mode
+                    })
+                    .catch(error => {
+                        console.error('[DEV MODE] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html> 

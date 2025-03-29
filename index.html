@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <!-- Better cache control strategy - aggressive for HTML to ensure timely updates -->
+    <meta http-equiv="Cache-Control" content="no-cache">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="description" content="Join dimbadimba on an endless adventure. Jump over obstacles, collect coins, and set high scores in this fast-paced pixel art runner game.">
     <title>Dimbadimba - Pixel Runner Game</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=515d648">
     <link rel="manifest" href="manifest.json">
     
     <!-- Favicon and App Icons -->
@@ -160,40 +164,102 @@
         </div>
     </div>
     
-    <script src="script.js"></script>
+    <!-- Add version query param to script file -->
+    <script src="script.js?v=515d648"></script>
     <script>
-        // Register service worker
+        // Improved service worker registration with better update handling
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
+                // Add timestamp & cache busting parameter
+                const swUrl = './service-worker.js?v=' + new Date().getTime();
+                
+                navigator.serviceWorker.register(swUrl)
                     .then(registration => {
                         console.log('Service Worker registered with scope:', registration.scope);
                         
-                        // Listen for updates
+                        // Check for existing waiting worker immediately
+                        if (registration.waiting) {
+                            console.log('New service worker is waiting to activate');
+                            showUpdateNotification();
+                        }
+                        
+                        // Add listener for new installing workers
                         registration.addEventListener('updatefound', () => {
+                            // Track the installing worker
                             const newWorker = registration.installing;
+                            console.log('New service worker found and installing');
                             
-                            // Dispatch a custom event when an update is found
-                            const updateEvent = new CustomEvent('service-worker-update-found');
-                            window.dispatchEvent(updateEvent);
-                            
-                            console.log('New service worker update found!');
+                            newWorker.addEventListener('statechange', () => {
+                                // When the new service worker is installed (waiting)
+                                if (newWorker.state === 'installed') {
+                                    if (navigator.serviceWorker.controller) {
+                                        // Existing service worker controlling the page
+                                        // This means there's an update ready
+                                        console.log('New version available! Service worker installed and waiting.');
+                                        showUpdateNotification();
+                                    } else {
+                                        // First time install
+                                        console.log('Service worker installed for the first time. Content is cached for offline use.');
+                                    }
+                                }
+                                
+                                // Log other state changes
+                                console.log('Service worker state changed to:', newWorker.state);
+                            });
                         });
                     })
                     .catch(error => {
                         console.error('Service Worker registration failed:', error);
                     });
                     
-                // Listen for messages from the service worker
-                navigator.serviceWorker.addEventListener('message', event => {
-                    if (event.data && event.data.type === 'UPDATE_FOUND') {
-                        console.log(`Update available to version: ${event.data.version}`);
-                        
-                        // Show the update notification
-                        const notification = document.getElementById('updateNotification');
-                        if (notification) notification.classList.remove('hidden');
+                // More robust update check function
+                function checkForUpdates() {
+                    console.log('Checking for service worker updates...');
+                    navigator.serviceWorker.getRegistration().then(registration => {
+                        if (registration) {
+                            // Check if update is already waiting
+                            if (registration.waiting) {
+                                console.log('Update already waiting');
+                                showUpdateNotification();
+                                return;
+                            }
+                            
+                            // Force update check with timestamp to bypass cache
+                            registration.update().catch(err => {
+                                console.error('Update check failed:', err);
+                            });
+                        }
+                    });
+                }
+                
+                // Check for updates more frequently
+                const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+                setInterval(checkForUpdates, CHECK_INTERVAL);
+                
+                // Also check when page becomes visible again (user returns to tab)
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        console.log('Page visible again, checking for updates');
+                        checkForUpdates();
                     }
                 });
+                
+                // Helper function to show update notification
+                function showUpdateNotification() {
+                    const notification = document.getElementById('updateNotification');
+                    if (notification) {
+                        notification.classList.remove('hidden');
+                        
+                        // If user has been on page a while, make notification more visible
+                        const pageLoadTime = window.performance.timing.navigationStart;
+                        const currentTime = new Date().getTime();
+                        const timeOnPage = (currentTime - pageLoadTime) / 1000 / 60; // minutes
+                        
+                        if (timeOnPage > 10) { // If on page more than 10 minutes
+                            notification.classList.add('prominent');
+                        }
+                    }
+                }
             });
         }
     </script>
@@ -212,33 +278,38 @@
                 window.location.reload();
             });
             
-            // Check for updates every time page loads
-            function checkForUpdates() {
-                navigator.serviceWorker.getRegistration().then(reg => {
-                    if (reg) reg.update().catch(err => console.log('Service worker update failed:', err));
-                });
-            }
-            
-            // Set up update checks and notification handling
+            // Set up update button
             window.addEventListener('load', () => {
-                // Initial update check
-                checkForUpdates();
-                
-                // Set up update check every minute
-                setInterval(checkForUpdates, 60000);
-                
-                // Set up update button
                 const updateButton = document.getElementById('updateNow');
                 if (updateButton) {
                     updateButton.addEventListener('click', () => {
-                        // Tell service worker to skip waiting
                         navigator.serviceWorker.getRegistration().then(reg => {
                             if (reg && reg.waiting) {
+                                console.log('Sending skip waiting message to service worker');
+                                
+                                // Post message to the waiting service worker
                                 reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                                
+                                // Hide the notification
+                                const notification = document.getElementById('updateNotification');
+                                if (notification) notification.classList.add('hidden');
+                            } else {
+                                console.log('No waiting service worker found');
+                                
+                                // Fallback - force reload from server
+                                window.location.reload(true);
                             }
                         });
                     });
                 }
+                
+                // Listen for messages from service worker
+                navigator.serviceWorker.addEventListener('message', event => {
+                    console.log('Message from service worker:', event.data);
+                    if (event.data && event.data.type === 'UPDATE_FOUND') {
+                        showUpdateNotification();
+                    }
+                });
             });
         }
     </script>

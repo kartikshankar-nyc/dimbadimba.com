@@ -1,157 +1,212 @@
-// Dimbadimba Game - Service Worker
+/**
+ * Dimbadimba Game Service Worker
+ * Handles caching and offline functionality
+ */
 
-// Increment this version number whenever you make significant changes
-const CACHE_VERSION = 3;
-const CACHE_NAME = `dimbadimba-game-v${CACHE_VERSION}`;
+const CACHE_VERSION = 2;
+const DEPLOY_TIMESTAMP = '12345678';
+const CACHE_NAME = `dimbadimba-cache-v${CACHE_VERSION}-${DEPLOY_TIMESTAMP}`;
 
-// Assets to cache on install
+// Debug logging - shows in the service worker console in the browser
+const DEBUG = true;
+function swLog(message, ...args) {
+  if (DEBUG) {
+    console.log(`[Service Worker ${CACHE_VERSION}:${DEPLOY_TIMESTAMP}] ${message}`, ...args);
+  }
+}
+
+// Assets to cache initially (these will be supplemented by the asset manifest)
 const ASSETS = [
   './',
   './index.html',
-  './style.css',
-  './script.js',
   './manifest.json',
-  './icons/icon-16x16.png',
-  './icons/icon-32x32.png',
-  './icons/icon-72x72.png',
-  './icons/icon-96x96.png',
-  './icons/icon-128x128.png',
-  './icons/icon-144x144.png',
-  './icons/icon-152x152.png',
-  './icons/icon-192x192.png',
-  './icons/icon-384x384.png',
-  './icons/icon-512x512.png',
-  './images/dimbadimba.png'
+  './asset-manifest.json'
 ];
 
-// Critical assets that should always be fetched from network first
-const NETWORK_FIRST_ASSETS = [
-  './index.html',
-  './style.css',
-  './script.js'
-];
-
-// Install event - cache assets
+// Install event - cache all needed assets
 self.addEventListener('install', event => {
-  console.log(`Service Worker installing (v${CACHE_VERSION})`);
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Caching game assets');
-        return cache.addAll(ASSETS);
-      })
-      .then(() => self.skipWaiting()) // Force activation on all clients
-  );
-});
-
-// Activate event - clean old caches and take control immediately
-self.addEventListener('activate', event => {
-  console.log(`Service Worker activating (v${CACHE_VERSION})`);
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            console.log('Clearing old cache:', cache);
-            return caches.delete(cache);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('Service worker now controls all clients');
-      return self.clients.claim(); // Take control of all pages immediately
-    })
-  );
-});
-
-// Fetch event - Use different strategies based on the asset type
-self.addEventListener('fetch', event => {
-  const requestUrl = new URL(event.request.url);
-  const pathname = requestUrl.pathname;
+  swLog('Service worker installing...');
   
-  // For same-origin requests only
-  if (requestUrl.origin === self.location.origin) {
-    
-    // Check if this is a critical asset that should be network-first
-    const isNetworkFirstAsset = NETWORK_FIRST_ASSETS.some(asset => {
-      // Convert both to relative paths for comparison
-      const assetPath = new URL(asset, self.location.origin).pathname;
-      return pathname === assetPath || pathname === '/' || pathname === '/index.html';
-    });
-    
-    if (isNetworkFirstAsset) {
-      // Use network-first strategy for critical assets
-      event.respondWith(networkFirstStrategy(event.request));
-    } else {
-      // Use cache-first strategy for other assets
-      event.respondWith(cacheFirstStrategy(event.request));
-    }
-  }
-});
-
-// Network-first strategy: try network, fall back to cache
-function networkFirstStrategy(request) {
-  return fetch(request)
-    .then(response => {
-      // Cache the updated version
-      const responseToCache = response.clone();
-      caches.open(CACHE_NAME).then(cache => {
-        cache.put(request, responseToCache);
-      });
-      return response;
-    })
-    .catch(() => {
-      console.log('Network request failed, falling back to cache', request.url);
-      return caches.match(request);
-    });
-}
-
-// Cache-first strategy: try cache, fall back to network
-function cacheFirstStrategy(request) {
-  return caches.match(request)
-    .then(response => {
-      // Return cached response if found
-      if (response) {
-        return response;
-      }
-      
-      // Otherwise fetch from network
-      return fetchAndCache(request);
-    });
-}
-
-// Helper function to fetch and cache resources
-function fetchAndCache(request) {
-  return fetch(request)
-    .then(response => {
-      // Cache new successful responses
-      if (response.status === 200 && response.type === 'basic') {
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME)
+  // Load assets from the asset manifest if available
+  event.waitUntil(
+    fetch('./asset-manifest.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to load asset manifest');
+        }
+        return response.json();
+      })
+      .then(manifest => {
+        swLog(`Loaded asset manifest with ${Object.keys(manifest).length} entries`);
+        
+        // Get the hashed filenames for caching
+        const hashedAssets = Object.values(manifest).map(path => `./${path}`);
+        const allAssets = [...ASSETS, ...hashedAssets];
+        
+        swLog(`Caching ${allAssets.length} assets`);
+        
+        // Now open the cache and add all assets
+        return caches.open(CACHE_NAME)
           .then(cache => {
-            cache.put(request, responseToCache);
+            return cache.addAll(allAssets);
           });
-      }
-      return response;
-    });
-}
+      })
+      .catch(error => {
+        swLog('Error during installation:', error);
+        
+        // Fallback to just caching the basic assets if manifest is unavailable
+        return caches.open(CACHE_NAME)
+          .then(cache => {
+            swLog('Falling back to basic asset caching');
+            return cache.addAll(ASSETS);
+          });
+      })
+  );
+});
 
 // Listen for messages from clients
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('Service worker skipping waiting phase');
+    swLog('Skip waiting message received, activating immediately');
     self.skipWaiting();
   }
 });
 
-// Send message to clients when an update is found
-self.addEventListener('updatefound', event => {
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'UPDATE_FOUND',
-        version: CACHE_VERSION
+// Instead, send update notifications when activated
+self.addEventListener('activate', event => {
+  swLog(`Activating service worker (v${CACHE_VERSION}, ${DEPLOY_TIMESTAMP})`);
+  
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      swLog('Existing caches:', cacheNames);
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            swLog('Clearing old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+      swLog('Service worker now controls all clients');
+      // Notify all clients about the update
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'UPDATE_FOUND',
+            version: CACHE_VERSION
+          });
+        });
+        return self.clients.claim(); // Take control of all pages immediately
       });
-    });
-  });
+    })
+  );
+});
+
+// Fetch event - serve from cache or network
+self.addEventListener('fetch', event => {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+  
+  // Skip cross-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) return;
+  
+  // Handle asset requests - content-hashed files can be cached forever
+  event.respondWith(
+    caches.match(event.request).then(cachedResponse => {
+      if (cachedResponse) {
+        // For non-HTML requests, return cached version immediately
+        if (!event.request.url.endsWith('.html') && 
+            !event.request.url.endsWith('/') &&
+            !event.request.url.endsWith('service-worker.js') &&
+            !event.request.url.endsWith('asset-manifest.json')) {
+          return cachedResponse;
+        }
+      }
+      
+      // If not cached or is HTML/service worker, fetch from network
+      return fetch(event.request)
+        .then(response => {
+          // Check if valid response
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          
+          // Clone the response - one to return, one to cache
+          const responseToCache = response.clone();
+          
+          // Check if request URL includes a content hash (filename.hash.ext pattern)
+          const isHashedAsset = /\.[0-9a-f]{8}\.(js|css|png|jpg|jpeg|gif|svg|mp3|wav|json)$/i.test(event.request.url);
+          
+          // Cache the fetched response 
+          // Note: We always update the cache for HTML and service worker
+          const shouldCache = isHashedAsset || 
+                              event.request.url.endsWith('.html') || 
+                              event.request.url.endsWith('/') ||
+                              event.request.url.endsWith('service-worker.js') ||
+                              event.request.url.endsWith('asset-manifest.json');
+                              
+          if (shouldCache) {
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                swLog(`Caching fetch response for: ${event.request.url}`);
+                cache.put(event.request, responseToCache);
+              })
+              .catch(err => {
+                swLog('Error caching response:', err);
+              });
+          }
+          
+          return response;
+        })
+        .catch(error => {
+          swLog(`Fetch failed for ${event.request.url}:`, error);
+          
+          // For navigation requests, try to return the cached index.html as fallback
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          
+          // For other requests that fail, return cached version if available
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          // Otherwise let the error pass through
+          throw error;
+        });
+    })
+  );
+});
+
+// Listen for push notifications (if we add these later)
+self.addEventListener('push', event => {
+  swLog('Push notification received:', event);
+  
+  if (!event.data) return;
+  
+  const data = event.data.json();
+  const options = {
+    body: data.body || 'New update available!',
+    icon: './icons/icon-192x192.png',
+    badge: './icons/icon-32x32.png',
+    data: {
+      url: data.url || '/'
+    }
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Dimbadimba Game', options)
+  );
+});
+
+// Handle notification clicks
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  
+  if (event.notification.data && event.notification.data.url) {
+    event.waitUntil(
+      clients.openWindow(event.notification.data.url)
+    );
+  }
 }); 
