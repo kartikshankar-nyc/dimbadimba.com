@@ -1,6 +1,10 @@
 // Dimbadimba Game - Service Worker
 
-const CACHE_NAME = 'dimbadimba-game-v2';
+// Increment this version number whenever you make significant changes
+const CACHE_VERSION = 3;
+const CACHE_NAME = `dimbadimba-game-v${CACHE_VERSION}`;
+
+// Assets to cache on install
 const ASSETS = [
   './',
   './index.html',
@@ -20,21 +24,29 @@ const ASSETS = [
   './images/dimbadimba.png'
 ];
 
+// Critical assets that should always be fetched from network first
+const NETWORK_FIRST_ASSETS = [
+  './index.html',
+  './style.css',
+  './script.js'
+];
+
 // Install event - cache assets
 self.addEventListener('install', event => {
-  console.log('Service Worker installing');
+  console.log(`Service Worker installing (v${CACHE_VERSION})`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Caching game assets');
         return cache.addAll(ASSETS);
       })
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()) // Force activation on all clients
   );
 });
 
-// Activate event - clean old caches
+// Activate event - clean old caches and take control immediately
 self.addEventListener('activate', event => {
+  console.log(`Service Worker activating (v${CACHE_VERSION})`);
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
@@ -46,45 +58,67 @@ self.addEventListener('activate', event => {
         })
       );
     }).then(() => {
-      return self.clients.claim();
+      console.log('Service worker now controls all clients');
+      return self.clients.claim(); // Take control of all pages immediately
     })
   );
 });
 
-// Fetch event - serve from cache, fall back to network
+// Fetch event - Use different strategies based on the asset type
 self.addEventListener('fetch', event => {
-  // Strip query parameters for cache matching
   const requestUrl = new URL(event.request.url);
-  const cacheKey = requestUrl.origin + requestUrl.pathname;
+  const pathname = requestUrl.pathname;
   
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // If exact match found, return it
-        if (response) {
-          return response;
-        }
-        
-        // Check if a version without query params is in cache
-        if (requestUrl.search) {
-          return caches.match(cacheKey)
-            .then(strippedResponse => {
-              // Return cached version without query or fetch from network
-              return strippedResponse || fetchAndCache(event.request);
-            });
-        }
-        
-        // Fetch and cache if not found
-        return fetchAndCache(event.request);
-      })
-      .catch(() => {
-        // Fallback for game assets
-        if (event.request.url.includes('/game/')) {
-          return caches.match('/index.html');
-        }
-      })
-  );
+  // For same-origin requests only
+  if (requestUrl.origin === self.location.origin) {
+    
+    // Check if this is a critical asset that should be network-first
+    const isNetworkFirstAsset = NETWORK_FIRST_ASSETS.some(asset => {
+      // Convert both to relative paths for comparison
+      const assetPath = new URL(asset, self.location.origin).pathname;
+      return pathname === assetPath || pathname === '/' || pathname === '/index.html';
+    });
+    
+    if (isNetworkFirstAsset) {
+      // Use network-first strategy for critical assets
+      event.respondWith(networkFirstStrategy(event.request));
+    } else {
+      // Use cache-first strategy for other assets
+      event.respondWith(cacheFirstStrategy(event.request));
+    }
+  }
 });
+
+// Network-first strategy: try network, fall back to cache
+function networkFirstStrategy(request) {
+  return fetch(request)
+    .then(response => {
+      // Cache the updated version
+      const responseToCache = response.clone();
+      caches.open(CACHE_NAME).then(cache => {
+        cache.put(request, responseToCache);
+      });
+      return response;
+    })
+    .catch(() => {
+      console.log('Network request failed, falling back to cache', request.url);
+      return caches.match(request);
+    });
+}
+
+// Cache-first strategy: try cache, fall back to network
+function cacheFirstStrategy(request) {
+  return caches.match(request)
+    .then(response => {
+      // Return cached response if found
+      if (response) {
+        return response;
+      }
+      
+      // Otherwise fetch from network
+      return fetchAndCache(request);
+    });
+}
 
 // Helper function to fetch and cache resources
 function fetchAndCache(request) {
@@ -96,15 +130,28 @@ function fetchAndCache(request) {
         caches.open(CACHE_NAME)
           .then(cache => {
             cache.put(request, responseToCache);
-            
-            // Also cache a version without query params
-            const requestUrl = new URL(request.url);
-            if (requestUrl.search) {
-              const strippedUrl = requestUrl.origin + requestUrl.pathname;
-              cache.put(new Request(strippedUrl), response.clone());
-            }
           });
       }
       return response;
     });
-} 
+}
+
+// Listen for messages from clients
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('Service worker skipping waiting phase');
+    self.skipWaiting();
+  }
+});
+
+// Send message to clients when an update is found
+self.addEventListener('updatefound', event => {
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'UPDATE_FOUND',
+        version: CACHE_VERSION
+      });
+    });
+  });
+}); 

@@ -1566,4 +1566,53 @@ html, body {
     color: white !important;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
     text-align: left !important;
+}
+
+/* Update notification styles */
+.update-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    padding: 15px;
+    transition: all 0.3s ease;
+    transform: translateY(0);
+    max-width: 300px;
+}
+
+.update-notification.hidden {
+    transform: translateY(150%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.update-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.update-content p {
+    margin: 0;
+    font-weight: bold;
+}
+
+#updateNow {
+    background-color: #f95738;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+#updateNow:hover {
+    background-color: #ff6b4a;
 } 

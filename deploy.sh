@@ -1,68 +1,55 @@
 #!/bin/bash
 
-# Simple deployment script for dimbadimba.com
+# Dimbadimba Game Deployment Script
+echo "Starting deployment process..."
 
-# Generate a timestamp for cache busting
+# Create timestamp for cache busting
 TIMESTAMP=$(date +%s)
+echo "Using timestamp for cache busting: $TIMESTAMP"
 
-echo "Starting deployment with cache busting (v$TIMESTAMP)..."
-
-echo "Preparing Dimbadimba game files for deployment..."
-
-# Create a deployment directory
-mkdir -p deploy
-
-# Copy main game files
-cp index.html deploy/
-cp style.css deploy/
-cp script.js deploy/
-cp README.md deploy/
-cp manifest.json deploy/
-cp service-worker.js deploy/
-
-# Create blank image files as placeholders (you should replace these with real icons)
-echo "Creating placeholder icons (replace with your own icon images)..."
-# Create simple icon files using ImageMagick if available
-if command -v convert &> /dev/null; then
-    convert -size 16x16 xc:black -fill white -font "Arial" -pointsize 10 -gravity center -draw "text 0,0 'D'" deploy/favicon-16.png
-    convert -size 32x32 xc:black -fill white -font "Arial" -pointsize 20 -gravity center -draw "text 0,0 'D'" deploy/favicon-32.png
-    convert -size 180x180 xc:black -fill white -font "Arial" -pointsize 100 -gravity center -draw "text 0,0 'D'" deploy/apple-touch-icon.png
-    convert -size 192x192 xc:black -fill white -font "Arial" -pointsize 100 -gravity center -draw "text 0,0 'D'" deploy/icon-192.png
-    convert -size 512x512 xc:black -fill white -font "Arial" -pointsize 250 -gravity center -draw "text 0,0 'D'" deploy/icon-512.png
-else
-    # If ImageMagick is not available, create empty files
-    touch deploy/favicon-16.png
-    touch deploy/favicon-32.png
-    touch deploy/apple-touch-icon.png
-    touch deploy/icon-192.png
-    touch deploy/icon-512.png
-    echo "ImageMagick not found. Please create your own icon files."
+# Create build directory if it doesn't exist
+BUILD_DIR="build"
+if [ ! -d "$BUILD_DIR" ]; then
+  mkdir -p "$BUILD_DIR"
+  echo "Created build directory at $BUILD_DIR"
 fi
 
-# Create versioned copies of CSS and JS files
-cp style.css "style.css?v=$TIMESTAMP"
-cp script.js "script.js?v=$TIMESTAMP"
+# Clean the build directory
+rm -rf $BUILD_DIR/*
+echo "Cleaned build directory"
 
-# Update references in index.html with versioned ones
-sed -i.bak "s/style\.css/style\.css?v=$TIMESTAMP/g" index.html
-sed -i.bak "s/script\.js/script\.js?v=$TIMESTAMP/g" index.html
+# Copy all files to build directory first
+cp -r index.html style.css script.js service-worker.js manifest.json icons/ images/ $BUILD_DIR/
+echo "Copied base files to build directory"
 
-# Update service-worker.js to cache both original and versioned files
-sed -i.bak "s/CACHE_NAME = 'dimbadimba-game-v[0-9]*'/CACHE_NAME = 'dimbadimba-game-v$TIMESTAMP'/g" service-worker.js
-sed -i.bak "/\/script\.js',/a \ \ 'script.js?v=$TIMESTAMP'," service-worker.js
-sed -i.bak "/\/style\.css',/a \ \ 'style.css?v=$TIMESTAMP'," service-worker.js
+# Update the cache version in service worker
+sed -i.bak "s/const CACHE_VERSION = [0-9]\+;/const CACHE_VERSION = $TIMESTAMP;/g" $BUILD_DIR/service-worker.js
+rm $BUILD_DIR/service-worker.js.bak
+echo "Updated service worker cache version to timestamp: $TIMESTAMP"
 
-# Clean up backup files
-find . -name "*.bak" -type f -delete
+# Add timestamp to CSS and JS references in HTML
+sed -i.bak "s/style.css/style.css?v=$TIMESTAMP/g" $BUILD_DIR/index.html
+sed -i.bak "s/script.js/script.js?v=$TIMESTAMP/g" $BUILD_DIR/index.html
+rm $BUILD_DIR/index.html.bak
+echo "Added cache busting parameters to asset URLs in HTML"
+
+# Update manifest version
+sed -i.bak "s/\"version\": \"[0-9.]*\"/\"version\": \"1.0.$TIMESTAMP\"/g" $BUILD_DIR/manifest.json
+rm $BUILD_DIR/manifest.json.bak
+echo "Updated version in manifest.json"
+
+# Display completion message
+echo "Build complete! Files ready for deployment in $BUILD_DIR/"
+echo "Cache-busting timestamp $TIMESTAMP applied to critical assets"
 
 # Create a zip file for easy upload
-cd deploy
+cd $BUILD_DIR
 zip -r dimbadimba_game.zip ./*
 cd ..
 
 echo "Deployment complete with cache busting (v$TIMESTAMP)"
 echo "Deployment package created successfully!"
-echo "You can find the zip file at: deploy/dimbadimba_game.zip"
+echo "You can find the zip file at: $BUILD_DIR/dimbadimba_game.zip"
 echo ""
 echo "To deploy your game:"
 echo "1. Upload these files to your chosen hosting provider"

@@ -138,45 +138,117 @@
         <div id="footer-ad" class="ad-container"></div>
     </div>
     
+    <!-- Add update notification element -->
+    <div id="updateNotification" class="update-notification hidden">
+        <div class="update-content">
+            <p>New version available!</p>
+            <button id="updateNow">Update Now</button>
+        </div>
+    </div>
+    
     <script src="script.js"></script>
     <script>
-        // Register service worker for offline capabilities
+        // Register service worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => {
-                        console.log('Service Worker registered successfully', reg);
-                        // Check if an update is available
-                        reg.onupdatefound = function() {
-                            const installingWorker = reg.installing;
-                            installingWorker.onstatechange = function() {
-                                console.log('Service Worker state changed:', installingWorker.state);
-                                if (installingWorker.state === 'activated') {
-                                    console.log('Service Worker activated - PWA ready to use');
-                                    // Force a reload to ensure the new service worker takes control
-                                    if (!navigator.serviceWorker.controller) {
-                                        window.location.reload();
-                                    }
-                                }
-                            };
-                        };
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                        
+                        // Listen for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            
+                            // Dispatch a custom event when an update is found
+                            const updateEvent = new CustomEvent('service-worker-update-found');
+                            window.dispatchEvent(updateEvent);
+                            
+                            console.log('New service worker update found!');
+                        });
                     })
-                    .catch(err => {
-                        console.error('Service Worker registration failed:', err);
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
                     });
-                
-                // Check for existing registrations and update if needed
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for (let registration of registrations) {
-                        registration.update();
+                    
+                // Listen for messages from the service worker
+                navigator.serviceWorker.addEventListener('message', event => {
+                    if (event.data && event.data.type === 'UPDATE_FOUND') {
+                        console.log(`Update available to version: ${event.data.version}`);
+                        
+                        // Show the update notification
+                        const notification = document.getElementById('updateNotification');
+                        if (notification) notification.classList.remove('hidden');
                     }
                 });
             });
-        } else {
-            console.warn('Service Workers not supported in this browser');
         }
+    </script>
+    
+    <!-- Update handler -->
+    <script>
+        // Handle service worker updates
+        if ('serviceWorker' in navigator) {
+            let refreshing = false;
+            
+            // When the page refreshes due to a new service worker
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                console.log('New service worker controller, refreshing page...');
+                window.location.reload();
+            });
+            
+            // Check for updates every time page loads
+            function checkForUpdates() {
+                navigator.serviceWorker.getRegistration().then(reg => {
+                    if (reg) reg.update().catch(err => console.log('Service worker update failed:', err));
+                });
+            }
+            
+            // Set up update checks and notification handling
+            window.addEventListener('load', () => {
+                // Initial update check
+                checkForUpdates();
+                
+                // Set up update check every minute
+                setInterval(checkForUpdates, 60000);
+                
+                // Set up update button
+                const updateButton = document.getElementById('updateNow');
+                if (updateButton) {
+                    updateButton.addEventListener('click', () => {
+                        // Tell service worker to skip waiting
+                        navigator.serviceWorker.getRegistration().then(reg => {
+                            if (reg && reg.waiting) {
+                                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
+                }
+            });
+        }
+    </script>
+    
+    <script>
+        // Add some variables to track game state
+    </script>
+    
+    <!-- Add our new JavaScript files -->
+    <script type="module">
+        import adManager from './ads.js';
         
-        // Function to handle fullscreen
+        // Initialize ads after the game is loaded
+        document.addEventListener('DOMContentLoaded', async function() {
+            await adManager.initialize();
+            
+            // Create ad slots
+            adManager.createAdSlot('header-ad', ADSENSE_CONFIG.adSlots.header);
+            adManager.createAdSlot('footer-ad', ADSENSE_CONFIG.adSlots.footer);
+        });
+    </script>
+    
+    <!-- Function to handle fullscreen -->
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
             const fullscreenButton = document.getElementById('fullscreenButton');
             
@@ -244,20 +316,6 @@
                 document.body.classList.remove('fullscreen-mode');
             }
         }
-    </script>
-    
-    <!-- Add our new JavaScript files -->
-    <script type="module">
-        import adManager from './ads.js';
-        
-        // Initialize ads after the game is loaded
-        document.addEventListener('DOMContentLoaded', async function() {
-            await adManager.initialize();
-            
-            // Create ad slots
-            adManager.createAdSlot('header-ad', ADSENSE_CONFIG.adSlots.header);
-            adManager.createAdSlot('footer-ad', ADSENSE_CONFIG.adSlots.footer);
-        });
     </script>
 </body>
 </html> 
