@@ -1688,6 +1688,9 @@ function setupEventListeners() {
         console.warn("Start button element not found");
     }
     
+    // Create and add share button to start screen
+    addShareButtonToStartScreen();
+    
     if (restartButton) {
         // Remove any existing listeners to prevent duplicates
         restartButton.removeEventListener('click', restartGame);
@@ -1782,6 +1785,317 @@ function setupEventListeners() {
             updateDifficultyButtons();
             localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
         });
+    }
+}
+
+// Function to add share button to start screen
+function addShareButtonToStartScreen() {
+    // Check if start screen exists
+    const startScreen = document.getElementById('startScreen');
+    if (!startScreen) return;
+    
+    // Check if share button already exists
+    if (document.getElementById('startScreenShareButton')) return;
+    
+    // Add the social share styles if they don't exist
+    addSocialShareStyles();
+    
+    // Create share button
+    const shareButton = document.createElement('button');
+    shareButton.id = 'startScreenShareButton';
+    shareButton.className = 'share-button start-share-button';
+    shareButton.textContent = '🔄 Share Game';
+    shareButton.style.backgroundColor = '#e74c3c';
+    shareButton.style.marginTop = '10px';
+    
+    // Add additional styles specific to the start screen button
+    const startShareStyle = document.createElement('style');
+    startShareStyle.textContent = `
+        .start-share-button {
+            display: block;
+            margin: 15px auto;
+            padding: 10px 15px;
+            font-size: 16px;
+        }
+    `;
+    document.head.appendChild(startShareStyle);
+    
+    // Add click event
+    shareButton.addEventListener('click', () => {
+        // Open share dialog with game URL
+        if (navigator.share) {
+            // Use Web Share API if available
+            navigator.share({
+                title: 'Dimbadimba Pixel Runner',
+                text: '🎮 Check out this fun runner game called Dimbadimba Pixel Runner!',
+                url: window.location.href.split('?')[0]
+            }).catch(err => {
+                console.error('Share failed:', err);
+                // Fallback to manual sharing
+                openShareDialog();
+            });
+        } else {
+            // Fallback for browsers without Web Share API
+            openShareDialog();
+        }
+    });
+    
+    // Insert button before the iOS install instructions
+    const iosInstructions = document.getElementById('iosInstallInstructions');
+    if (iosInstructions) {
+        startScreen.insertBefore(shareButton, iosInstructions);
+    } else {
+        // Alternatively, append it after the start button
+        const startButton = document.getElementById('startButton');
+        if (startButton) {
+            startButton.insertAdjacentElement('afterend', shareButton);
+        } else {
+            // Last resort, just append to start screen
+            startScreen.appendChild(shareButton);
+        }
+    }
+}
+
+// Function to open a share dialog with options
+function openShareDialog() {
+    // Create a modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'share-overlay';
+    overlay.innerHTML = `
+        <div class="share-dialog">
+            <h3>Share Dimbadimba</h3>
+            <div class="share-options">
+                <button class="share-option twitter-share">
+                    <span class="share-icon">🐦</span>
+                    <span>Twitter</span>
+                </button>
+                <button class="share-option facebook-share">
+                    <span class="share-icon">📘</span>
+                    <span>Facebook</span>
+                </button>
+                <button class="share-option whatsapp-share">
+                    <span class="share-icon">💬</span>
+                    <span>WhatsApp</span>
+                </button>
+                <button class="share-option copy-link">
+                    <span class="share-icon">🔗</span>
+                    <span>Copy Link</span>
+                </button>
+            </div>
+            <button class="close-dialog">Close</button>
+        </div>
+    `;
+    
+    // Add styles for the dialog
+    const dialogStyles = document.createElement('style');
+    dialogStyles.textContent = `
+        .share-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+        
+        .share-dialog {
+            background-color: #2c3e50;
+            border-radius: 10px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        
+        .share-dialog h3 {
+            color: white;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        
+        .share-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .share-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #34495e;
+            border: none;
+            border-radius: 8px;
+            padding: 15px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        
+        .share-option:hover {
+            transform: translateY(-3px);
+            background-color: #2c3e50;
+        }
+        
+        .share-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .close-dialog {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .close-dialog:hover {
+            background-color: #c0392b;
+        }
+        
+        .twitter-share { background-color: #1DA1F2; }
+        .facebook-share { background-color: #4267B2; }
+        .whatsapp-share { background-color: #25D366; }
+        .copy-link { background-color: #0097e6; }
+    `;
+    document.head.appendChild(dialogStyles);
+    
+    // Add to document
+    document.body.appendChild(overlay);
+    
+    // Add event listeners
+    overlay.querySelector('.twitter-share').addEventListener('click', () => {
+        shareOnTwitter(); // Don't pass a score parameter
+        overlay.remove();
+    });
+    
+    overlay.querySelector('.facebook-share').addEventListener('click', () => {
+        shareOnFacebook(); // Don't pass a score parameter
+        overlay.remove();
+    });
+    
+    overlay.querySelector('.whatsapp-share').addEventListener('click', () => {
+        shareOnWhatsApp(); // Don't pass a score parameter
+        overlay.remove();
+    });
+    
+    overlay.querySelector('.copy-link').addEventListener('click', () => {
+        copyShareLink(); // Don't pass a score parameter
+        overlay.remove();
+    });
+    
+    overlay.querySelector('.close-dialog').addEventListener('click', () => {
+        overlay.remove();
+    });
+    
+    // Close when clicking outside the dialog
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+}
+
+// Modified sharing functions to handle general sharing (not just scores)
+function shareOnTwitter(score) {
+    let text, url;
+    
+    if (typeof score === 'number') {
+        // Share score
+        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score?`;
+    } else {
+        // Share game
+        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game!`;
+    }
+    
+    url = window.location.href.split('?')[0]; // Remove any query parameters
+    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    window.open(shareUrl, '_blank');
+}
+
+function shareOnFacebook(score) {
+    let quote, url;
+    
+    if (typeof score === 'number') {
+        // Share score
+        quote = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score?`;
+    } else {
+        // Share game
+        quote = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game!`;
+    }
+    
+    url = window.location.href.split('?')[0]; // Remove any query parameters
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(quote)}`;
+    window.open(shareUrl, '_blank');
+}
+
+function shareOnWhatsApp(score) {
+    let text;
+    
+    if (typeof score === 'number') {
+        // Share score
+        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score? Play now at ${window.location.href.split('?')[0]}`;
+    } else {
+        // Share game
+        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game! Play now at ${window.location.href.split('?')[0]}`;
+    }
+    
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(shareUrl, '_blank');
+}
+
+function copyShareLink(score) {
+    let text;
+    
+    if (typeof score === 'number') {
+        // Share score
+        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score? Play now at ${window.location.href.split('?')[0]}`;
+    } else {
+        // Share game
+        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game! Play now at ${window.location.href.split('?')[0]}`;
+    }
+    
+    // Try to use the clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                // Show success message
+                showShareNotification('Link copied to clipboard!');
+            })
+            .catch(err => {
+                console.error('Failed to copy text: ', err);
+                // Fallback to prompt
+                prompt('Copy this link to share:', text);
+            });
+    } else {
+        // Fallback for browsers that don't support clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            showShareNotification('Link copied to clipboard!');
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            prompt('Copy this link to share:', text);
+        }
+        
+        document.body.removeChild(textArea);
     }
 }
 
@@ -3800,6 +4114,281 @@ function gameOver() {
     
     // Update final score display
     finalScoreElement.textContent = gameState.score;
+    
+    // Create share buttons if they don't exist yet
+    createSocialShareButtons();
+}
+
+// Function to create social media share buttons
+function createSocialShareButtons() {
+    // Check if share buttons already exist
+    if (document.getElementById('social-share-container')) {
+        return;
+    }
+    
+    // Create container for social share buttons
+    const shareContainer = document.createElement('div');
+    shareContainer.id = 'social-share-container';
+    shareContainer.className = 'social-share-container';
+    
+    // Add share heading
+    const shareHeading = document.createElement('p');
+    shareHeading.textContent = 'Share your score:';
+    shareHeading.className = 'share-heading';
+    shareContainer.appendChild(shareHeading);
+    
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'share-buttons';
+    
+    // Add Twitter share button
+    const twitterButton = createShareButton('twitter', '🐦 Twitter', '#1DA1F2');
+    twitterButton.addEventListener('click', () => shareOnTwitter(gameState.score));
+    buttonContainer.appendChild(twitterButton);
+    
+    // Add Facebook share button
+    const facebookButton = createShareButton('facebook', '📘 Facebook', '#4267B2');
+    facebookButton.addEventListener('click', () => shareOnFacebook(gameState.score));
+    buttonContainer.appendChild(facebookButton);
+    
+    // Add WhatsApp share button
+    const whatsappButton = createShareButton('whatsapp', '💬 WhatsApp', '#25D366');
+    whatsappButton.addEventListener('click', () => shareOnWhatsApp(gameState.score));
+    buttonContainer.appendChild(whatsappButton);
+    
+    // Add share via URL button
+    const urlButton = createShareButton('url', '🔗 Copy Link', '#0097e6');
+    urlButton.addEventListener('click', () => copyShareLink(gameState.score));
+    buttonContainer.appendChild(urlButton);
+    
+    // Add buttons to container
+    shareContainer.appendChild(buttonContainer);
+    
+    // Add share container to game over screen
+    const gameOverScreen = document.getElementById('game-over');
+    // Insert before the restart button
+    const restartButton = document.getElementById('restartButton');
+    gameOverScreen.insertBefore(shareContainer, restartButton);
+    
+    // Add CSS styles for share buttons
+    addSocialShareStyles();
+}
+
+// Helper function to create a share button
+function createShareButton(platform, text, bgColor) {
+    const button = document.createElement('button');
+    button.className = `share-button ${platform}-share`;
+    button.textContent = text;
+    button.style.backgroundColor = bgColor;
+    return button;
+}
+
+// Function to share on Twitter
+function shareOnTwitter(score) {
+    let text, url;
+    
+    if (typeof score === 'number') {
+        // Share score
+        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score?`;
+    } else {
+        // Share game
+        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game!`;
+    }
+    
+    url = window.location.href.split('?')[0]; // Remove any query parameters
+    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    window.open(shareUrl, '_blank');
+}
+
+// Function to share on Facebook
+function shareOnFacebook(score) {
+    let quote, url;
+    
+    if (typeof score === 'number') {
+        // Share score
+        quote = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score?`;
+    } else {
+        // Share game
+        quote = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game!`;
+    }
+    
+    url = window.location.href.split('?')[0]; // Remove any query parameters
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(quote)}`;
+    window.open(shareUrl, '_blank');
+}
+
+// Function to share on WhatsApp
+function shareOnWhatsApp(score) {
+    let text;
+    
+    if (typeof score === 'number') {
+        // Share score
+        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score? Play now at ${window.location.href.split('?')[0]}`;
+    } else {
+        // Share game
+        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game! Play now at ${window.location.href.split('?')[0]}`;
+    }
+    
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(shareUrl, '_blank');
+}
+
+// Function to copy share link to clipboard
+function copyShareLink(score) {
+    let text;
+    
+    if (typeof score === 'number') {
+        // Share score
+        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score? Play now at ${window.location.href.split('?')[0]}`;
+    } else {
+        // Share game
+        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game! Play now at ${window.location.href.split('?')[0]}`;
+    }
+    
+    // Try to use the clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                // Show success message
+                showShareNotification('Link copied to clipboard!');
+            })
+            .catch(err => {
+                console.error('Failed to copy text: ', err);
+                // Fallback to prompt
+                prompt('Copy this link to share:', text);
+            });
+    } else {
+        // Fallback for browsers that don't support clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            showShareNotification('Link copied to clipboard!');
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            prompt('Copy this link to share:', text);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+}
+
+// Function to show notification after copying
+function showShareNotification(message) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'share-notification';
+    notification.textContent = message;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.classList.add('visible');
+    }, 10);
+    
+    // Remove after 2 seconds
+    setTimeout(() => {
+        notification.classList.remove('visible');
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 2000);
+}
+
+// Function to add CSS styles for social share buttons
+function addSocialShareStyles() {
+    // Check if styles already exist
+    if (document.getElementById('social-share-styles')) {
+        return;
+    }
+    
+    // Create style element
+    const style = document.createElement('style');
+    style.id = 'social-share-styles';
+    
+    // Add CSS rules
+    style.textContent = `
+        .social-share-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .share-heading {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        .share-buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .share-button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            min-width: 110px;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .share-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .share-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
+        }
+        
+        .share-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            transition: transform 0.3s ease-out;
+        }
+        
+        .share-notification.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 480px) {
+            .share-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .share-button {
+                width: 80%;
+                max-width: 200px;
+            }
+        }
+    `;
+    
+    // Add to document head
+    document.head.appendChild(style);
 }
 
 // Particle class for smoke effect
