@@ -3575,6 +3575,9 @@ function handleCollision() {
     // Play hit sound
     playSound('hit');
     
+    // Update life display
+    updateLivesDisplay();
+    
     // If no lives left, game over
     if (gameState.lives <= 0) {
         gameOver();
@@ -3584,9 +3587,6 @@ function handleCollision() {
     // Otherwise, make player invincible temporarily
     gameState.isInvincible = true;
     gameState.invincibilityTimer = 0;
-    
-    // Update life display
-    updateLivesDisplay();
 }
 
 // Function to update the lives display in UI
