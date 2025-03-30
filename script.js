@@ -1790,68 +1790,102 @@ function setupEventListeners() {
 
 // Function to add share button to start screen
 function addShareButtonToStartScreen() {
-    // Check if start screen exists
-    const startScreen = document.getElementById('startScreen');
-    if (!startScreen) return;
+    // Remove any existing share button first
+    const existingButton = document.getElementById('start-screen-share-button');
+    if (existingButton) {
+        existingButton.remove();
+    }
     
-    // Check if share button already exists
-    if (document.getElementById('startScreenShareButton')) return;
-    
-    // Add the social share styles if they don't exist
-    addSocialShareStyles();
-    
-    // Create share button
+    // Create the share button with proper HTML structure
     const shareButton = document.createElement('button');
-    shareButton.id = 'startScreenShareButton';
-    shareButton.className = 'share-button start-share-button';
-    shareButton.textContent = '🔄 Share Game';
-    shareButton.style.backgroundColor = '#e74c3c';
-    shareButton.style.marginTop = '10px';
+    shareButton.id = 'start-screen-share-button';
     
-    // Add additional styles specific to the start screen button
-    const startShareStyle = document.createElement('style');
-    startShareStyle.textContent = `
-        .start-share-button {
-            display: block;
-            margin: 15px auto;
-            padding: 10px 15px;
-            font-size: 16px;
-        }
-    `;
-    document.head.appendChild(startShareStyle);
+    // Create SVG icon element
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'share-icon';
+    
+    // Create text element
+    const textSpan = document.createElement('span');
+    textSpan.textContent = 'Share';
+    
+    // Add icon and text to button
+    shareButton.appendChild(iconSpan);
+    shareButton.appendChild(textSpan);
+    
+    // Apply modern pill button styling (now for inline use in the header)
+    shareButton.style.padding = '6px 14px';
+    shareButton.style.borderRadius = '50px';
+    shareButton.style.background = '#222';
+    shareButton.style.color = 'white';
+    shareButton.style.fontWeight = '600';
+    shareButton.style.fontSize = '14px';
+    shareButton.style.display = 'flex';
+    shareButton.style.alignItems = 'center';
+    shareButton.style.gap = '8px';
+    shareButton.style.border = 'none';
+    shareButton.style.cursor = 'pointer';
+    shareButton.style.marginLeft = '12px';
+    shareButton.style.transition = 'transform 0.2s, background 0.2s';
+    shareButton.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    
+    // Add share icon styling
+    iconSpan.style.width = '16px';
+    iconSpan.style.height = '16px';
+    iconSpan.style.display = 'block';
+    iconSpan.style.backgroundImage = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z"/></svg>')`;
+    iconSpan.style.backgroundRepeat = 'no-repeat';
+    iconSpan.style.backgroundPosition = 'center';
+    iconSpan.style.backgroundSize = 'contain';
+    
+    // Hover effects
+    shareButton.onmouseover = function() {
+        this.style.transform = 'scale(1.05)';
+        this.style.background = '#000';
+    };
+    shareButton.onmouseout = function() {
+        this.style.transform = 'scale(1)';
+        this.style.background = '#222';
+    };
     
     // Add click event
-    shareButton.addEventListener('click', () => {
-        // Open share dialog with game URL
+    shareButton.addEventListener('click', function() {
+        // Use Web Share API if available
         if (navigator.share) {
-            // Use Web Share API if available
             navigator.share({
                 title: 'Dimbadimba Pixel Runner',
-                text: '🎮 Check out this fun runner game called Dimbadimba Pixel Runner!',
-                url: window.location.href.split('?')[0]
+                text: '🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game!',
+                url: window.location.href.split('?')[0],
             }).catch(err => {
-                console.error('Share failed:', err);
-                // Fallback to manual sharing
+                console.error('Error sharing:', err);
+                // Fall back to custom share dialog if Web Share API fails
                 openShareDialog();
             });
         } else {
-            // Fallback for browsers without Web Share API
+            // Use custom share dialog for browsers without Web Share API
             openShareDialog();
         }
     });
     
-    // Insert button before the iOS install instructions
-    const iosInstructions = document.getElementById('iosInstallInstructions');
-    if (iosInstructions) {
-        startScreen.insertBefore(shareButton, iosInstructions);
+    // Find the game title in the header and add the share button next to it
+    const gameTitle = document.querySelector('.game-title') || document.querySelector('h1');
+    
+    if (gameTitle) {
+        // Insert after the game title
+        gameTitle.insertAdjacentElement('afterend', shareButton);
     } else {
-        // Alternatively, append it after the start button
-        const startButton = document.getElementById('startButton');
-        if (startButton) {
-            startButton.insertAdjacentElement('afterend', shareButton);
+        // Fallback: Look for game header
+        const gameHeader = document.querySelector('.game-header');
+        if (gameHeader) {
+            // Append to header with styling for right alignment
+            shareButton.style.marginLeft = 'auto';
+            gameHeader.appendChild(shareButton);
         } else {
-            // Last resort, just append to start screen
-            startScreen.appendChild(shareButton);
+            // Final fallback: Add to start screen with absolute positioning
+            shareButton.style.position = 'absolute';
+            shareButton.style.top = '15px';
+            shareButton.style.right = '60px';
+            shareButton.style.zIndex = '9998';
+            document.body.appendChild(shareButton);
         }
     }
 }
@@ -1865,20 +1899,36 @@ function openShareDialog() {
         <div class="share-dialog">
             <h3>Share Dimbadimba</h3>
             <div class="share-options">
-                <button class="share-option twitter-share">
-                    <span class="share-icon">🐦</span>
-                    <span>Twitter</span>
+                <button class="share-option x-share">
+                    <span class="share-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </span>
+                    <span>X</span>
                 </button>
                 <button class="share-option facebook-share">
-                    <span class="share-icon">📘</span>
+                    <span class="share-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                    </span>
                     <span>Facebook</span>
                 </button>
                 <button class="share-option whatsapp-share">
-                    <span class="share-icon">💬</span>
+                    <span class="share-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.652a11.882 11.882 0 005.693 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                    </span>
                     <span>WhatsApp</span>
                 </button>
                 <button class="share-option copy-link">
-                    <span class="share-icon">🔗</span>
+                    <span class="share-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white">
+                            <path d="M11 17H7c-2.76 0-5-2.24-5-5s2.24-5 5-5h4v2H7c-1.65 0-3 1.35-3 3s1.35 3 3 3h4v2zm2-2h4c1.65 0 3-1.35 3-3s-1.35-3-3-3h-4V7h4c2.76 0 5 2.24 5 5s-2.24 5-5 5h-4v-2zm-8-4h16v2H5v-2z"/>
+                        </svg>
+                    </span>
                     <span>Copy Link</span>
                 </button>
             </div>
@@ -1905,26 +1955,26 @@ function openShareDialog() {
         
         .share-dialog {
             background-color: #2c3e50;
-            border-radius: 10px;
-            padding: 20px;
+            border-radius: 16px;
+            padding: 24px;
             width: 90%;
-            max-width: 400px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            max-width: 450px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
         
         .share-dialog h3 {
             color: white;
             margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 22px;
+            margin-bottom: 25px;
+            font-size: 24px;
         }
         
         .share-options {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 16px;
+            margin-bottom: 24px;
         }
         
         .share-option {
@@ -1933,32 +1983,46 @@ function openShareDialog() {
             align-items: center;
             justify-content: center;
             background-color: #34495e;
-            border: none;
-            border-radius: 8px;
-            padding: 15px;
+            border: 3px solid rgba(255, 255, 255, 0.25);
+            border-radius: 12px;
+            padding: 18px;
             color: white;
             cursor: pointer;
-            transition: transform 0.2s, background-color 0.2s;
+            transition: transform 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
         
         .share-option:hover {
-            transform: translateY(-3px);
+            transform: translateY(-4px);
             background-color: #2c3e50;
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
         }
         
-        .share-icon {
-            font-size: 24px;
-            margin-bottom: 8px;
+        .share-option .share-icon {
+            width: 32px;
+            height: 32px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .share-option .share-icon svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
         }
         
         .close-dialog {
             background-color: #e74c3c;
             color: white;
             border: none;
-            border-radius: 5px;
-            padding: 10px 20px;
+            border-radius: 8px;
+            padding: 12px 24px;
             cursor: pointer;
             font-weight: bold;
+            font-size: 16px;
             transition: background-color 0.2s;
         }
         
@@ -1966,10 +2030,51 @@ function openShareDialog() {
             background-color: #c0392b;
         }
         
-        .twitter-share { background-color: #1DA1F2; }
+        .x-share { 
+            background-color: #000000; 
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4), 0 0 5px rgba(255, 255, 255, 0.15);
+        }
+        
+        .x-share:hover {
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5), 0 0 8px rgba(255, 255, 255, 0.25);
+        }
+        
         .facebook-share { background-color: #4267B2; }
         .whatsapp-share { background-color: #25D366; }
-        .copy-link { background-color: #0097e6; }
+        .copy-link { background-color: #2980b9; }
+        
+        @media (max-width: 480px) {
+            .share-dialog {
+                padding: 20px;
+                width: 95%;
+            }
+            
+            .share-options {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .share-option {
+                flex-direction: row;
+                justify-content: flex-start;
+                padding: 14px;
+                text-align: left;
+            }
+            
+            .share-option .share-icon {
+                margin-bottom: 0;
+                margin-right: 12px;
+            }
+            
+            .share-option span:not(.share-icon) {
+                font-size: 18px;
+                flex-grow: 1;
+                text-align: center;
+                margin-right: 32px;
+            }
+        }
     `;
     document.head.appendChild(dialogStyles);
     
@@ -1977,23 +2082,23 @@ function openShareDialog() {
     document.body.appendChild(overlay);
     
     // Add event listeners
-    overlay.querySelector('.twitter-share').addEventListener('click', () => {
-        shareOnTwitter(); // Don't pass a score parameter
+    overlay.querySelector('.x-share').addEventListener('click', () => {
+        shareOnX(gameState.score);
         overlay.remove();
     });
     
     overlay.querySelector('.facebook-share').addEventListener('click', () => {
-        shareOnFacebook(); // Don't pass a score parameter
+        shareOnFacebook(gameState.score);
         overlay.remove();
     });
     
     overlay.querySelector('.whatsapp-share').addEventListener('click', () => {
-        shareOnWhatsApp(); // Don't pass a score parameter
+        shareOnWhatsApp(gameState.score);
         overlay.remove();
     });
     
     overlay.querySelector('.copy-link').addEventListener('click', () => {
-        copyShareLink(); // Don't pass a score parameter
+        copyShareLink(gameState.score);
         overlay.remove();
     });
     
@@ -2010,7 +2115,7 @@ function openShareDialog() {
 }
 
 // Modified sharing functions to handle general sharing (not just scores)
-function shareOnTwitter(score) {
+function shareOnX(score) {
     let text, url;
     
     if (typeof score === 'number') {
@@ -4141,23 +4246,23 @@ function createSocialShareButtons() {
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'share-buttons';
     
-    // Add Twitter share button
-    const twitterButton = createShareButton('twitter', '🐦 Twitter', '#1DA1F2');
-    twitterButton.addEventListener('click', () => shareOnTwitter(gameState.score));
-    buttonContainer.appendChild(twitterButton);
+    // Add X (formerly Twitter) share button
+    const xButton = createShareButton('x', 'X', '#000000');
+    xButton.addEventListener('click', () => shareOnX(gameState.score));
+    buttonContainer.appendChild(xButton);
     
     // Add Facebook share button
-    const facebookButton = createShareButton('facebook', '📘 Facebook', '#4267B2');
+    const facebookButton = createShareButton('facebook', 'Facebook', '#4267B2');
     facebookButton.addEventListener('click', () => shareOnFacebook(gameState.score));
     buttonContainer.appendChild(facebookButton);
     
     // Add WhatsApp share button
-    const whatsappButton = createShareButton('whatsapp', '💬 WhatsApp', '#25D366');
+    const whatsappButton = createShareButton('whatsapp', 'WhatsApp', '#25D366');
     whatsappButton.addEventListener('click', () => shareOnWhatsApp(gameState.score));
     buttonContainer.appendChild(whatsappButton);
     
     // Add share via URL button
-    const urlButton = createShareButton('url', '🔗 Copy Link', '#0097e6');
+    const urlButton = createShareButton('url', 'Copy Link', '#2980b9'); // Changed color to be distinct
     urlButton.addEventListener('click', () => copyShareLink(gameState.score));
     buttonContainer.appendChild(urlButton);
     
@@ -4178,13 +4283,58 @@ function createSocialShareButtons() {
 function createShareButton(platform, text, bgColor) {
     const button = document.createElement('button');
     button.className = `share-button ${platform}-share`;
-    button.textContent = text;
+    
+    // Create SVG icon element based on platform
+    const iconElement = document.createElement('span');
+    iconElement.className = `share-icon ${platform}-icon`;
+    
+    // Set SVG content based on platform
+    switch(platform) {
+        case 'x':
+            // X logo (formerly Twitter)
+            iconElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`;
+            break;
+        case 'facebook':
+            // Facebook logo 
+            iconElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>`;
+            break;
+        case 'whatsapp':
+            // WhatsApp logo
+            iconElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.652a11.882 11.882 0 005.693 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
+            break;
+        case 'url':
+            // Updated, more modern link icon
+            iconElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white">
+                <path d="M11 17H7c-2.76 0-5-2.24-5-5s2.24-5 5-5h4v2H7c-1.65 0-3 1.35-3 3s1.35 3 3 3h4v2zm2-2h4c1.65 0 3-1.35 3-3s-1.35-3-3-3h-4V7h4c2.76 0 5 2.24 5 5s-2.24 5-5 5h-4v-2zm-8-4h16v2H5v-2z"/>
+            </svg>`;
+            break;
+    }
+    
+    // Create text element
+    const textElement = document.createElement('span');
+    textElement.className = 'share-text';
+    textElement.textContent = text;
+    
+    // Add icon and text to button
+    button.appendChild(iconElement);
+    button.appendChild(textElement);
+    
+    // Set button styling with common properties
     button.style.backgroundColor = bgColor;
+    button.style.border = '3px solid rgba(255, 255, 255, 0.25)';
+    button.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+    
+    // Add extra styles for X button (dark background needs more visible border)
+    if (platform === 'x') {
+        button.style.border = '3px solid rgba(255, 255, 255, 0.4)';
+        button.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.4), 0 0 5px rgba(255, 255, 255, 0.15)';
+    }
+    
     return button;
 }
 
-// Function to share on Twitter
-function shareOnTwitter(score) {
+// Function to share on X (formerly Twitter)
+function shareOnX(score) {
     let text, url;
     
     if (typeof score === 'number') {
@@ -4320,69 +4470,132 @@ function addSocialShareStyles() {
         
         .share-heading {
             color: white;
-            font-size: 18px;
-            margin-bottom: 10px;
+            font-size: 20px;
+            margin-bottom: 15px;
             text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            font-weight: bold;
         }
         
         .share-buttons {
             display: flex;
             justify-content: center;
             flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 12px;
+            margin-bottom: 20px;
         }
         
         .share-button {
-            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
             border: none;
-            border-radius: 20px;
+            border-radius: 24px;
             color: white;
             font-weight: bold;
+            font-size: 16px;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
-            min-width: 110px;
-            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+            min-width: 130px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            gap: 8px;
         }
         
         .share-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 8px rgba(0, 0, 0, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4);
         }
         
         .share-button:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .share-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+        
+        .share-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .share-text {
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Platform-specific styles */
+        .x-share {
+            background-color: #000000;
+        }
+        
+        .facebook-share {
+            background-color: #4267B2;
+        }
+        
+        .whatsapp-share {
+            background-color: #25D366;
+        }
+        
+        .url-share {
+            background-color: #2980b9;
         }
         
         .share-notification {
             position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
             background-color: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             z-index: 9999;
             transition: transform 0.3s ease-out;
+            font-size: 16px;
+            font-weight: 600;
         }
         
         .share-notification.visible {
             transform: translateX(-50%) translateY(0);
         }
         
-        /* Mobile adjustments */
+        /* Responsive styles */
         @media (max-width: 480px) {
             .share-buttons {
                 flex-direction: column;
                 align-items: center;
+                gap: 15px;
             }
             
             .share-button {
-                width: 80%;
-                max-width: 200px;
+                width: 90%;
+                max-width: 250px;
+                padding: 12px 16px;
+                justify-content: flex-start;
+            }
+            
+            .share-text {
+                font-size: 18px;
+            }
+            
+            .share-icon {
+                width: 26px;
+                height: 26px;
+                margin-right: 5px;
+            }
+            
+            /* Center text in the button */
+            .share-text {
+                flex-grow: 1;
+                text-align: center;
+                margin-right: 26px; /* Balance the icon on the left */
             }
         }
     `;
