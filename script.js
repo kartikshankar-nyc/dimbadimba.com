@@ -19,6 +19,13 @@ const POWERUP_SPAWN_CHANCE = 0.15; // Chance of spawning a power-up when an obst
 const INITIAL_LIVES = 3; // Number of lives player starts with
 const INVINCIBILITY_TIME = 1500; // Time (ms) of invincibility after hit
 
+// Smoke effect constants
+const MAX_SMOKE_PARTICLES = 25;  // Increased from 20
+const SMOKE_SPAWN_RATE = 80;     // Reduced from 100 ms for more frequent puffs
+const SMOKE_SIZE_MIN = 4;        // Reduced from 5 
+const SMOKE_SIZE_MAX = 12;       // Reduced from 15
+const SMOKE_LIFETIME = 2400;     // Increased from 2000 ms for longer-lasting smoke
+
 // PWA Installation Variables
 let deferredPrompt;
 let installButton;
@@ -102,6 +109,8 @@ let gameState = {
         armRotationCycles: 0, // Counter for completed cycles
         maxArmRotationCycles: 2 // Number of full rotations to complete
     },
+    smokeParticles: [], // Array to hold smoke particles
+    smokeTimer: 0, // Timer for spawning smoke particles
     firstObstacleSpawned: false, // Track if the first obstacle has spawned
     magnetRange: 150, // Range for magnet power-up to attract coins
     speedBoostMultiplier: 1.5, // Speed multiplier for speed boost power-up
@@ -2351,6 +2360,11 @@ function drawGame() {
     }
     ctx.restore();
     
+    // Draw smoke particles (draw after player so smoke appears above)
+    gameState.smokeParticles.forEach(particle => {
+        particle.draw(ctx);
+    });
+    
     // Draw magnet range indicator if active
     if (gameState.activePowerups[POWERUP_TYPES.MAGNET]) {
         ctx.beginPath();
@@ -2453,6 +2467,7 @@ function animationLoop(timestamp = 0) {
         updateObstacles(deltaTime);
         updateCoins(deltaTime);
         updatePowerups(deltaTime);
+        updateSmoke(deltaTime); // Update smoke particles
         updatePointIndicators(deltaTime); // Update point indicators
         updateBackground();
         checkCollisions();
@@ -3785,5 +3800,97 @@ function gameOver() {
     
     // Update final score display
     finalScoreElement.textContent = gameState.score;
+}
+
+// Particle class for smoke effect
+class SmokeParticle {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        // Start with smaller smoke particles for pipe smoke
+        this.size = SMOKE_SIZE_MIN * 0.6 + Math.random() * (SMOKE_SIZE_MIN * 0.5);
+        this.maxSize = SMOKE_SIZE_MAX;
+        this.life = 0;
+        this.opacity = 0.9;
+        // More consistent upward and leftward movement for pipe smoke
+        this.velocityX = -0.6 - Math.random() * 0.8;
+        this.velocityY = -0.8 - Math.random() * 0.6;  // More upward motion
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.01;
+    }
+    
+    update(deltaTime) {
+        this.life += deltaTime;
+        
+        if (this.life < SMOKE_LIFETIME * 0.2) {
+            // Initial phase - slow growth to simulate smoke coming out of pipe
+            this.size += (this.size * 1.5 - this.size) * 0.02;
+        } else if (this.life < SMOKE_LIFETIME * 0.6) {
+            // Middle phase - faster growth as smoke expands in the air
+            this.size += (this.maxSize - this.size) * 0.03;
+            // Smoke slows down as it rises
+            this.velocityX *= 0.99;
+            this.velocityY *= 0.99;
+        } else {
+            // Fading phase
+            this.opacity = 0.9 * (1 - ((this.life - SMOKE_LIFETIME * 0.6) / (SMOKE_LIFETIME * 0.4)));
+            // Add slight drift at the end
+            this.velocityX *= 0.98;
+            this.velocityY *= 0.98;
+        }
+        
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+        this.rotation += this.rotationSpeed;
+        
+        return this.life < SMOKE_LIFETIME;
+    }
+    
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        
+        // Draw smoke particle as soft cloud - more white for pipe smoke
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        gradient.addColorStop(0.6, 'rgba(245, 245, 245, 0.7)');
+        gradient.addColorStop(1, 'rgba(240, 240, 240, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    }
+}
+
+function updateSmoke(deltaTime) {
+    // Update timer for spawning new particles
+    gameState.smokeTimer += deltaTime;
+    
+    // Spawn new particles at specific intervals
+    if (gameState.smokeTimer > SMOKE_SPAWN_RATE && gameState.running && !gameState.paused) {
+        gameState.smokeTimer = 0;
+        
+        // Get more precise pipe location measurements
+        const offsetX = sprites.player.width - gameState.dimbadimba.width;
+        const offsetY = sprites.player.height - gameState.dimbadimba.height;
+        
+        // Fixed position where the pipe would be - right side of mouth
+        // The pipe location is consistent regardless of character position/movement
+        const pipeX = gameState.dimbadimba.x + gameState.dimbadimba.width * 0.85;
+        const pipeY = gameState.dimbadimba.y + gameState.dimbadimba.height * 0.42;
+        
+        // Add new particle if we don't exceed the max
+        if (gameState.smokeParticles.length < MAX_SMOKE_PARTICLES) {
+            gameState.smokeParticles.push(new SmokeParticle(pipeX, pipeY));
+        }
+    }
+    
+    // Update existing particles and remove dead ones
+    gameState.smokeParticles = gameState.smokeParticles.filter(particle => particle.update(deltaTime));
 }
   
