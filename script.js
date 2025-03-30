@@ -1,8 +1,8 @@
 // Game constants
 let GAME_WIDTH = window.innerWidth;
 let GAME_HEIGHT = window.innerHeight;
-const GRAVITY = 0.8;
-const JUMP_FORCE = -15;
+const GRAVITY = 0.65; // Reduced from 0.8 to make jumps longer (less pull down)
+const JUMP_FORCE = -18; // Changed from -15 to -18 to make jumps higher (stronger initial upward force)
 const GROUND_HEIGHT = 40;
 const PLAYER_WIDTH = 80;  // Doubled from 40 to 80
 const PLAYER_HEIGHT = 100; // Doubled from 50 to 100
@@ -32,8 +32,8 @@ const DIFFICULTY_SETTINGS = {
         obstacleInterval: 2000,
         coinInterval: 2000,
         powerupSpawnChance: 0.25,
-        gravity: 0.7,
-        jumpForce: -14
+        gravity: 0.55, // Reduced from 0.7
+        jumpForce: -17 // Stronger upward force
     },
     normal: {
         initialSpeed: 5,
@@ -41,8 +41,8 @@ const DIFFICULTY_SETTINGS = {
         obstacleInterval: 1500,
         coinInterval: 2500,
         powerupSpawnChance: 0.15,
-        gravity: 0.8,
-        jumpForce: -15
+        gravity: 0.65, // Reduced from 0.8
+        jumpForce: -18 // Stronger upward force
     },
     hard: {
         initialSpeed: 6,
@@ -50,8 +50,8 @@ const DIFFICULTY_SETTINGS = {
         obstacleInterval: 1200,
         coinInterval: 3000,
         powerupSpawnChance: 0.1,
-        gravity: 0.9,
-        jumpForce: -16
+        gravity: 0.75, // Reduced from 0.9
+        jumpForce: -19 // Stronger upward force
     }
 };
 
