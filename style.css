@@ -309,10 +309,11 @@ h2 {
 }
 
 .character-display img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+    max-width: 120%;
+    max-height: 120%;
+    object-fit: cover;
     filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+    transform: scale(1.4); /* Increased scale factor for larger appearance */
 }
 
 .sound-toggle {
@@ -966,10 +967,1713 @@ html, body {
 }
 
 .character-display img {
+    max-width: 120%;
+    max-height: 120%;
+    object-fit: cover;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+    transform: scale(1.4); /* Increased scale factor for larger appearance */
+}
+
+.start-screen-character {
+    transition: transform 0.3s ease;
+    animation: bounce 2s infinite ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@media (max-width: 600px) {
+    .character-intro {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .character-display {
+        margin-right: 0;
+        margin-bottom: 20px;
+    }
+}
+
+/* Specific styling for landscape mode */
+@media (orientation: landscape) and (max-height: 600px) {
+    .overlay {
+        justify-content: flex-start;
+        padding: 10px 20px;
+    }
+    
+    .overlay h2 {
+        font-size: 20px;
+        margin: 5px 0;
+    }
+    
+    .character-intro {
+        margin: 10px 0 15px;
+        padding: 10px;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .character-display {
+        width: 120px;
+        height: 120px;
+        margin-right: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .game-description {
+        font-size: 14px;
+        line-height: 1.3;
+    }
+    
+    .mode-selection {
+        margin: 10px 0;
+    }
+    
+    .mode-selection p {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+    
+    .mode-buttons button {
+        padding: 8px 15px;
+        font-size: 14px;
+    }
+    
+    #startButton, #restartButton {
+        margin-top: 10px;
+        padding: 10px 25px;
+        font-size: 16px;
+    }
+    
+    .instructions {
+        font-size: 14px;
+        margin-top: 10px;
+    }
+}
+
+/* Enhanced mobile landscape adjustments for very small screens */
+@media (orientation: landscape) and (max-height: 450px) {
+    .overlay {
+        padding: 3px 10px;
+    }
+    
+    .character-intro {
+        margin: 5px 0 10px;
+    }
+    
+    .character-display {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .game-description {
+        font-size: 12px;
+    }
+    
+    #startButton, #restartButton {
+        position: sticky;
+        bottom: 10px;
+        z-index: 25;
+        margin-top: 5px;
+        padding: 8px 20px;
+    }
+}
+
+/* Mode selection buttons */
+.mode-selection, .difficulty-selection {
+    margin: 15px 0;
+    text-align: center;
+}
+
+.mode-buttons, .difficulty-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.mode-buttons button, .difficulty-buttons button {
+    padding: 8px 15px;
+    background-color: #555;
+    color: #fff;
+    border: 2px solid #777;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.mode-buttons button:hover, .difficulty-buttons button:hover {
+    background-color: #666;
+}
+
+.mode-buttons button.selected, .difficulty-buttons button.selected {
+    background-color: #3498db;
+    border-color: #2980b9;
+}
+
+/* Game options container */
+.game-options-container {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin: 15px auto;
+    padding: 20px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    max-width: 400px;
+}
+
+.option-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    position: relative;
+}
+
+.option-group:first-child::after {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: 15px;
+    bottom: 15px;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.option-group h3 {
+    color: white;
+    margin-bottom: 12px;
+    font-size: 18px;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    font-family: 'PixelFont', Arial, sans-serif;
+}
+
+.icon-toggles {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.icon-toggle {
+    position: relative;
+    font-size: 24px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #333;
+    border: 2px solid #555;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+}
+
+.icon-toggle:hover {
+    transform: scale(1.1);
+    background-color: #444;
+}
+
+.icon-toggle.selected {
+    background-color: #3498db;
+    border-color: #2980b9;
+    transform: scale(1.2);
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.7);
+}
+
+/* Tooltip styles */
+.icon-toggle::after {
+    content: attr(aria-label);
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    white-space: nowrap;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.icon-toggle:hover::after {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 450px) {
+    .game-options-container {
+        flex-direction: column;
+        gap: 25px;
+        padding: 15px;
+    }
+    
+    .option-group:first-child::after {
+        display: none;
+    }
+    
+    .option-group:first-child {
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .icon-toggle {
+        font-size: 20px;
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* Install button styles */
+.install-button {
+    background-color: #27ae60 !important; /* Green color */
+    color: white !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    font-size: 18px !important;
+    cursor: pointer !important;
+    margin-top: 15px !important;
+    margin-bottom: 15px !important;
+    border: 2px solid #219653 !important;
+    box-shadow: 0 4px 0 #1e8449 !important;
+    transition: all 0.2s !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: 'PixelFont', Arial, sans-serif !important;
+    -webkit-tap-highlight-color: rgba(0,0,0,0) !important; /* Remove tap highlight on mobile */
+    position: relative !important;
+    z-index: 100 !important; /* Ensure it's above other elements */
+    width: auto !important;
+    min-width: 180px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.install-button:hover, .install-button:active {
+    background-color: #2ecc71 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 0 #1e8449 !important;
+}
+
+.install-icon {
+    margin-right: 8px !important;
+    font-size: 20px !important;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Install prompt toast */
+.install-toast {
+    position: fixed !important;
+    bottom: 20px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    z-index: 1000 !important;
+    display: flex !important;
+    align-items: center !important;
+    animation: fadeIn 0.3s ease-in-out !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.install-toast-message {
+    margin-right: 15px !important;
+}
+
+.install-toast-button {
+    background-color: #3498db !important;
+    border: none !important;
+    color: white !important;
+    padding: 5px 10px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+}
+
+.install-toast-close {
+    margin-left: 10px !important;
+    cursor: pointer !important;
+    opacity: 0.7 !important;
+}
+
+.install-toast-close:hover {
+    opacity: 1 !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; bottom: 0; }
+    to { opacity: 1; bottom: 20px; }
+}
+
+/* iOS installation instructions */
+.install-instructions {
+    margin: 15px auto !important;
+    padding: 10px 15px !important;
+    background: rgba(0,0,0,0.5) !important;
+    border-radius: 8px !important;
+    color: white !important;
+    max-width: 300px !important;
+    text-align: center !important;
+    font-size: 14px !important;
+    border: 1px dashed rgba(255,255,255,0.3) !important;
+}
+
+.install-instructions .highlight {
+    color: #3498db !important;
+    font-weight: bold !important;
+}
+
+.install-instructions .icon {
+    display: inline-block !important;
+    margin: 0 3px !important;
+    font-size: 16px !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .score-boxes {
+        font-size: 16px !important;
+        padding: 8px 10px !important;
+    }
+    
+    .score-item {
+        padding: 0 4px !important;
+    }
+    
+    .score-separator {
+        margin: 0 3px !important;
+    }
+}
+
+/* Controls styling */
+.controls-container {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin: 0 !important;
+    margin-left: auto !important;
+    padding: 3px 12px !important;
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+.control-item {
+    padding: 0 6px !important;
+    text-align: center !important;
+}
+
+.control-separator {
+    color: rgba(255, 255, 255, 0.6) !important;
+    margin: 0 3px !important;
+    font-weight: normal !important;
+}
+
+.control-key {
+    display: inline-block !important;
+    background-color: rgba(52, 152, 219, 0.4) !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    padding: 2px 6px !important;
+    margin-right: 4px !important;
+    box-shadow: 0 1px 0 rgba(52, 152, 219, 0.6) !important;
+    font-weight: bold !important;
+    font-size: 14px !important;
+}
+
+/* Responsive adjustments for controls */
+@media (max-width: 600px) {
+    .controls-container {
+        font-size: 13px !important;
+        padding: 2px 8px !important;
+    }
+    
+    .control-item {
+        padding: 0 4px !important;
+    }
+    
+    .control-separator {
+        margin: 0 3px !important;
+    }
+    
+    .control-key {
+        padding: 1px 3px !important;
+        font-size: 10px !important;
+    }
+}
+
+/* Install button in header */
+.game-header .install-button {
+    position: absolute !important;
+    top: 7px !important;
+    right: 10px !important;
+    margin: 0 !important;
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    min-width: auto !important;
+}
+
+/* Update install button styles for smaller screens */
+@media (max-width: 768px) {
+    .game-header .install-button {
+        top: 5px !important;
+        right: 10px !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+    }
+    
+    #soundToggle {
+        top: 8px;
+        right: 50px;
+        font-size: 18px;
+    }
+}
+
+/* Update header row alignment */
+.header-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 2px 0;
+    position: relative;
+}
+
+/* Add flex container for second row */
+.header-row:last-child {
+    justify-content: flex-start;
+    gap: 20px;
+}
+
+/* Score boxes alignment */
+.score-boxes {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 3px 12px !important; 
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    max-width: 100% !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+    text-align: left !important;
+}
+
+/* Controls container positioning */
+.controls-container {
+    margin-left: auto !important;
+}
+
+/* New container styles */
+.left-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-left: 0; /* Remove padding from container */
+}
+
+.right-content {
+    margin-left: auto;
+}
+
+/* Score boxes alignment */
+.score-boxes {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 3px 12px !important; 
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    max-width: 100% !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+    text-align: left !important;
+}
+
+/* Small screen adjustments */
+@media (max-width: 768px) {
+    .header-row:last-child {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .left-content {
+        width: 100%;
+        padding-left: 10px;
+    }
+    
+    .right-content {
+        width: 100%;
+        margin-left: 0;
+        display: flex;
+        justify-content: flex-end;
+        padding-right: 10px;
+    }
+    
+    .score-boxes, .controls-container {
+        width: auto;
+    }
+}
+
+.aligned-container {
+    display: flex;
+    /* This creates a container that aligns with the title-container */
+    width: auto;
+    padding-left: 0;
+    margin-left: 0;
+}
+
+.score-boxes {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 3px 0 !important;
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+    text-align: left !important;
+}
+
+/* Update notification styles */
+.update-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    padding: 15px;
+    transition: all 0.3s ease;
+    transform: translateY(0);
+    max-width: 300px;
+}
+
+.update-notification.hidden {
+    transform: translateY(150%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.update-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.update-content p {
+    margin: 0;
+    font-weight: bold;
+}
+
+#updateNow {
+    background-color: #f95738;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+#updateNow:hover {
+    background-color: #ff6b4a;
+}
+
+/* Styling for lives display */
+#livesDisplay {
+    color: #ff4f4f !important;
+    font-weight: bold !important;
+    position: relative;
+    padding-left: 5px;
+}
+
+#livesDisplay::before {
+    content: "❤️";
+    margin-right: 3px;
+    font-size: 0.9em;
+}
+
+/* Landscape orientation improvements for mobile */
+@media (orientation: landscape) and (max-height: 450px) {
+    .game-header {
+        padding: 3px 10px;
+        flex-direction: row;
+    }
+    
+    .header-row {
+        margin: 0;
+    }
+    
+    .header-row:last-child {
+        flex-direction: row;
+        gap: 5px;
+    }
+    
+    .game-title {
+        font-size: 14px;
+    }
+    
+    .score-boxes, .controls-container {
+        font-size: 10px !important;
+        padding: 1px 4px !important;
+    }
+    
+    .control-key {
+        font-size: 8px !important;
+        padding: 1px 2px !important;
+    }
+    
+    .mobile-controls {
+        bottom: 5px;
+        left: 5px;
+    }
+    
+    .mobile-controls button {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+}
+
+/* Ensure fixed position for iOS Safari */
+body.ios-device {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Ensure button sizes are good for touch */
+@media (max-width: 768px) {
+    .mobile-controls button {
+        width: 50px;
+        height: 50px;
+        min-width: 44px;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+@font-face {
+    font-family: 'PixelFont';
+    src: url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'PixelFont', Arial, sans-serif;
+    background-color: #000;
+    position: fixed;
+}
+
+.game-container {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+
+.game-header {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 5px 10px;
+    background-color: rgba(0, 0, 0, 0.9);
+    position: relative;
+    z-index: 10;
+    border-bottom: 2px solid #f95738;
+}
+
+.header-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 2px 0;
+    position: relative;
+    padding: 0;
+}
+
+.title-container {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+}
+
+.game-title {
+    font-family: 'PixelFont', Arial, sans-serif;
+    font-size: 22px;
+    color: #f95738;
+    text-shadow: 0 0 10px rgba(249, 87, 56, 0.5);
+    margin: 0;
+    padding: 0;
+    letter-spacing: 1px;
+    text-align: left;
+}
+
+.aligned-container {
+    display: flex;
+    width: auto;
+    padding: 0;
+    margin: 0;
+}
+
+.score-boxes {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 3px 8px 3px 0 !important; /* Right padding only */
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    width: auto !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    letter-spacing: 0.5px !important;
+    color: white !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+    text-align: left !important;
+}
+
+.score-item, .control-item {
+    padding: 0 6px !important;
+    text-align: center !important;
+}
+
+.score-item:first-child {
+    padding-left: 0 !important; /* Remove padding from first item to align with PIXEL */
+}
+
+/* Make sure second row has correct styling */
+.header-row.second-row {
+    margin-top: 0;
+}
+
+.header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.score-separator, .control-separator {
+    color: rgba(255, 255, 255, 0.6) !important;
+    margin: 0 3px !important;
+    font-weight: normal !important;
+}
+
+.score-item span {
+    color: #ffdd57 !important; /* Bright yellow for values */
+    margin-left: 3px !important;
+    font-weight: bold !important;
+}
+
+#soundToggle {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.2s;
+    opacity: 0.9;
+    position: relative;
+    top: auto;
+    right: auto;
+}
+
+#soundToggle:hover {
+    transform: scale(1.1);
+    opacity: 1;
+}
+
+.game-footer {
+    width: 100%;
+    padding: 12px 25px;
+    background-color: rgba(0, 0, 0, 0.85);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.controls-text {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+}
+
+.controls-separator {
+    margin: 0 12px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Adjust the game area to ensure proper layout after header size change */
+.game-area {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    height: calc(100% - 60px); /* Reduce to account for smaller header */
+    overflow: hidden;
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background-color: #000;
+}
+
+.banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 12px 20px;
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    width: 100%;
+}
+
+.game-info, .controls {
+    flex: 1;
+    padding: 12px 20px;
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.game-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.controls-header {
+    color: #f95738;
+    font-size: 15px;
+    font-family: 'PixelFont', Arial, sans-serif;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+}
+
+.controls-instructions {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 1;
+    line-height: 1.4;
+    white-space: pre-line;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.game-description {
+    color: #ffffff;
+    text-align: left;
+    flex: 1;
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.5;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.6);
+}
+
+h1, h2 {
+    color: #ffffff;
+    text-align: center;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 24px;
+    margin: 10px 0;
+}
+
+#finalScore {
+    color: #f95738;
+    font-size: 36px;
+    margin: 15px 0 25px;
+    text-shadow: 0 0 10px rgba(249, 87, 56, 0.5);
+}
+
+.character-intro {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 0 30px;
+    max-width: 800px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(249, 87, 56, 0.2);
+}
+
+.character-display {
+    width: 280px;
+    height: 280px;
+    margin-right: 30px;
+    background-color: rgba(249, 87, 56, 0.1);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(249, 87, 56, 0.5);
+    border: 2px solid rgba(249, 87, 56, 0.3);
+    padding: 10px;
+    overflow: hidden;
+    transform: scale(1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.character-display:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(249, 87, 56, 0.7);
+}
+
+.character-display img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
     filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+    transform: scale(1.2); /* Make the image itself larger within the container */
+}
+
+.sound-toggle {
+    position: absolute;
+    right: 30px;
+    background-color: transparent;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+.sound-toggle:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .header-row {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .score-boxes, .controls-container {
+        font-size: 13px !important;
+        padding: 2px 8px !important;
+    }
+}
+
+@media (max-width: 500px) {
+    .header-row:last-child {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .game-title {
+        font-size: 18px;
+    }
+    
+    .score-boxes, .controls-container {
+        width: 95%;
+        padding: 2px 6px !important;
+        font-size: 12px !important;
+    }
+    
+    .control-key {
+        font-size: 10px !important;
+        padding: 1px 3px !important;
+    }
+}
+
+/* Mobile touch controls */
+.mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 20px;
+    z-index: 30;
+}
+
+.mobile-controls button {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    color: white;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+    touch-action: manipulation; /* Prevent double-tap zoom */
+}
+
+.mobile-controls button:active {
+    transform: scale(0.95);
+    background-color: rgba(249, 87, 56, 0.7);
+}
+
+/* Orientation message styles */
+#orientation-message {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+    opacity: 1;
+}
+
+#orientation-message.hidden {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.orientation-content {
+    background-color: #2c3e50;
+    border-radius: 8px;
+    padding: 30px;
+    max-width: 80%;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.rotate-icon {
+    font-size: 42px;
+    margin-bottom: 20px;
+    animation: rotate-device 2s infinite ease-in-out;
+}
+
+#dismiss-orientation {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+#dismiss-orientation:hover {
+    background-color: #2980b9;
+}
+
+/* Improved portrait mode styling for better fit */
+@media (orientation: portrait) {
+    .game-header {
+        padding: 10px 15px;
+    }
+
+    .controls {
+        margin-top: 0;
+    }
+}
+
+/* Landscape specific adjustments */
+@media (orientation: landscape) {
+    .game-container {
+        overflow: hidden;
+    }
+    
+    /* Ensure full height - account for potential browser chrome */
+    .game-area {
+        height: calc(100% - 40px); /* Subtract header height */
+    }
+    
+    /* Move mobile controls to not interfere with player */
+    .mobile-controls {
+        bottom: 10px;
+        left: 10px;
+    }
+}
+
+/* Full viewport fix for iOS Safari */
+@supports (-webkit-touch-callout: none) {
+    html, body {
+        height: 100%;
+        position: fixed;
+        overflow: hidden;
+        width: 100%;
+    }
+    
+    .game-container {
+        height: 100%;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+
+    .mobile-controls {
+        bottom: max(20px, env(safe-area-inset-bottom) + 5px);
+        left: max(20px, env(safe-area-inset-left) + 5px);
+    }
+}
+
+/* Improve touch target sizes */
+.mobile-controls button {
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* Prevent text selection on mobile */
+* {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Fullscreen mode styles */
+body.fullscreen-mode {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    position: fixed;
+}
+
+body.fullscreen-mode .game-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    box-sizing: border-box;
+}
+
+#fullscreenButton {
+    width: 40px;
+    height: 40px;
+    font-size: 1.5em;
+    cursor: pointer;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #3498db;
+    border: none;
+    border-radius: 50%;
+    color: white;
+    padding: 0;
+}
+
+.icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    background-color: #3498db;
+    color: white;
+    font-size: 1.5em;
+    margin: 0 5px;
+    transition: background-color 0.2s;
+}
+
+.icon-button:hover {
+    background-color: #2980b9;
+}
+
+/* For iOS notch and home indicator */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-top: env(safe-area-inset-top);
+    }
+}
+
+/* Add fullscreen button to controls */
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+}
+
+/* For standalone mode (PWA) */
+@media all and (display-mode: standalone) {
+    body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+    }
+    
+    .game-container {
+        height: 100%;
+        max-height: none;
+    }
+    
+    #fullscreenButton {
+        display: none; /* Hide when already in PWA mode */
+    }
+}
+
+/* Update mobile controls for better touch */
+@media (max-width: 768px) {
+    .mobile-controls button {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+        margin: 0 10px;
+    }
+    
+    #jumpButton, #pauseButton {
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Prevent double-tap zoom */
+    * {
+        touch-action: manipulation;
+    }
+}
+
+/* Fix issues with notched phones */
+@media screen and (orientation: landscape) {
+    .game-container {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+
+/* PWA Install Prompt Styles */
+.pwa-prompt {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    z-index: 1000;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.pwa-content {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pwa-message {
+    margin-bottom: 10px;
+}
+
+.pwa-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.pwa-buttons button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#pwa-install-btn {
+    background-color: #3498db;
+    color: white;
+}
+
+#pwa-dismiss-btn {
+    background-color: transparent;
+    color: #ccc;
+    border: 1px solid #ccc;
+}
+
+/* Mobile specific improvements */
+.is-mobile-device button {
+    min-height: 44px; /* Better touch target size */
+    min-width: 44px;
+}
+
+.is-mobile-device .mobile-controls {
+    padding: 20px 0;
+}
+
+/* Make more room on small devices */
+@media (max-height: 500px) and (orientation: landscape) {
+    .game-header {
+        padding: 5px 15px;
+        height: auto;
+    }
+    
+    .controls {
+        margin-top: 0;
+    }
+    
+    body.fullscreen-mode #gameCanvas {
+        max-height: calc(100% - 120px);
+    }
+}
+
+/* Fix overscroll behavior on mobile */
+body {
+    overscroll-behavior: contain;
+}
+
+/* Improve visual indication that the game is in fullscreen mode */
+body.fullscreen-mode:after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 2px #3498db;
+    z-index: 9999;
+    border-radius: 8px;
+    animation: fullscreen-indicator 1s ease-out;
+    opacity: 0;
+}
+
+@keyframes fullscreen-indicator {
+    0% { opacity: 0.8; box-shadow: inset 0 0 0 4px #3498db; }
+    100% { opacity: 0; box-shadow: inset 0 0 0 1px #3498db; }
+}
+
+/* Fix scrolling issues */
+html, body {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+@keyframes rotate-device {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(90deg); }
+    75% { transform: rotate(90deg); }
+    100% { transform: rotate(0deg); }
+}
+
+/* Specific fix for smaller mobile screens */
+@media (max-width: 480px) {
+    .game-header {
+        flex-direction: column;
+        padding: 8px;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .header-left {
+        width: 100%;
+        margin: 0;
+        align-items: center;
+    }
+
+    .game-title {
+        font-size: 16px;
+        text-align: center;
+    }
+
+    .score-boxes {
+        width: 100%;
+        padding: 2px 4px !important;
+        font-size: 11px !important;
+        justify-content: center;
+    }
+
+    .controls-container {
+        width: 100%;
+        padding: 2px 4px !important;
+        font-size: 11px !important;
+        justify-content: center;
+    }
+
+    .control-key {
+        font-size: 9px !important;
+        padding: 1px 2px !important;
+    }
+
+    .sound-toggle {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        margin: 0;
+        font-size: 18px;
+    }
+}
+
+/* Overlay for start and game over screens */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 20;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.overlay.hidden {
+    display: none;
+}
+
+.overlay h1 {
+    color: white;
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+.overlay h2 {
+    color: white;
+    font-size: 24px;
+    margin: 10px 0;
+}
+
+#finalScore {
+    color: #f95738;
+    font-size: 36px;
+    margin: 15px 0 25px;
+    text-shadow: 0 0 10px rgba(249, 87, 56, 0.5);
+}
+
+#startButton, #restartButton {
+    margin-top: 20px;
+    padding: 12px 30px;
+    background-color: #f95738;
+    color: white;
+    border: 3px solid white;
+    border-radius: 8px;
+    font-family: 'PixelFont', Arial, sans-serif;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#startButton:hover, #restartButton:hover {
+    background-color: #ff7d66;
+    transform: scale(1.05);
+}
+
+.instructions {
+    color: #ffffff;
+    font-size: 16px;
+    text-align: center;
+    margin-top: 15px;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+/* Mode selection styling */
+.mode-selection {
+    margin: 30px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.mode-selection p, .difficulty-selection p {
+    color: white;
+    font-size: 18px;
+    margin-bottom: 15px;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    font-weight: bold;
+    font-family: 'PixelFont', Arial, sans-serif;
+}
+
+.mode-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.mode-buttons button {
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: white;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.mode-buttons button:hover {
+    transform: translateY(-3px);
+    border-color: white;
+}
+
+.mode-buttons button.selected {
+    background-color: rgba(249, 87, 56, 0.3);
+    border-color: #f95738;
+    box-shadow: 0 0 10px rgba(249, 87, 56, 0.5);
+}
+
+/* Character intro styling */
+.character-intro {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 0 30px;
+    max-width: 800px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(249, 87, 56, 0.2);
+}
+
+.character-display {
+    width: 280px;
+    height: 280px;
+    margin-right: 30px;
+    background-color: rgba(249, 87, 56, 0.1);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(249, 87, 56, 0.5);
+    border: 2px solid rgba(249, 87, 56, 0.3);
+    padding: 10px;
+    overflow: hidden;
+    transform: scale(1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.character-display:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(249, 87, 56, 0.7);
+}
+
+.character-display img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+    transform: scale(1.2); /* Make the image itself larger within the container */
 }
 
 .start-screen-character {

@@ -1,0 +1,25 @@
+/* Character display container - back to original size */
+.character-display {
+    width: 180px !important;
+    height: 180px !important;
+    overflow: hidden !important;
+}
+
+/* Character image - larger but contained within the box */
+.character-display img {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    transform: scale(1.5) !important;
+    transform-origin: center !important;
+}
+
+/* Animation for the character */
+.start-screen-character {
+    animation: bounce 2s infinite ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: scale(1.5) translateY(0); }
+    50% { transform: scale(1.5) translateY(-10px); }
+} 

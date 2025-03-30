@@ -1223,8 +1223,8 @@ function loadPlayerImage() {
         
         // Create a properly sized version that maintains aspect ratio
         const canvas = document.createElement('canvas');
-        canvas.width = PLAYER_WIDTH * 1.5;  // Make canvas larger than player hitbox
-        canvas.height = PLAYER_HEIGHT * 1.5;
+        canvas.width = PLAYER_WIDTH * 2.2;  // Increased from 1.5x
+        canvas.height = PLAYER_HEIGHT * 2.2; // Increased from 1.5x
         const ctx = canvas.getContext('2d');
         
         // Calculate base scaling to maintain aspect ratio
@@ -1233,8 +1233,8 @@ function loadPlayerImage() {
             PLAYER_HEIGHT / playerImage.height
         );
         
-        // Make the character at least 2.5x larger than the minimum fit
-        const scale = baseScale * 2.5;
+        // Make the character larger (increased from 2.5x)
+        const scale = baseScale * 3.6;
         
         // Calculate dimensions with the enhanced scale
         const width = playerImage.width * scale;
@@ -1263,9 +1263,12 @@ function loadPlayerImage() {
         // Also create a version for the start screen (make this larger too)
         const startScreenDimbadimba = document.createElement('img');
         startScreenDimbadimba.src = playerImage.src;
-        startScreenDimbadimba.style.width = '160px'; // Further increased from 150px
+        startScreenDimbadimba.style.width = '240px'; // Adjusted size to fit container
         startScreenDimbadimba.style.height = 'auto';
+        startScreenDimbadimba.style.transform = 'scale(1.3)'; // Scale the image itself rather than making container larger
         startScreenDimbadimba.style.filter = 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))';
+        startScreenDimbadimba.style.position = 'relative'; // For proper scaling
+        startScreenDimbadimba.style.zIndex = '5'; // Ensure it's above the container background
         startScreenDimbadimba.classList.add('start-screen-character');
         
         // Display character on start screen
@@ -1278,11 +1281,11 @@ function loadPlayerImage() {
     
     playerImage.onerror = function() {
         console.warn("Could not load dimbadimba image, falling back to pixel art");
-        // Create the player sprite with multiple colors - doubled scale from 6 to 12
-        sprites.player = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 12);
+        // Create the player sprite with multiple colors - increased scale from 12 to 18
+        sprites.player = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 18);
         
-        // Also create a version for the start screen - doubled scale from 8 to 16
-        const startScreenDimbadimba = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 16);
+        // Also create a version for the start screen - increased scale from 24 to 32
+        const startScreenDimbadimba = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 32);
         
         // Display character on start screen
         const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
@@ -2323,9 +2326,11 @@ function drawGame() {
         // Draw normal player sprite
         if (sprites.playerOriginal) {
             // Calculate offset to center the larger sprite on the player's hitbox
+            // Increased offset to account for larger character size
             const offsetX = (sprites.player.width - gameState.dimbadimba.width) / 2;
             const offsetY = (sprites.player.height - gameState.dimbadimba.height) / 2;
             
+            // Draw with the calculated offset
             ctx.drawImage(
                 sprites.player,
                 gameState.dimbadimba.x - offsetX,
