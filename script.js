@@ -30,6 +30,9 @@ const SMOKE_SIZE_MIN = 4;        // Reduced from 5
 const SMOKE_SIZE_MAX = 12;       // Reduced from 15
 const SMOKE_LIFETIME = 2400;     // Increased from 2000 ms for longer-lasting smoke
 
+// Unique ID counter for obstacles
+let obstacleIdCounter = 0;
+
 // PWA Installation Variables
 let deferredPrompt;
 let installButton;
@@ -134,6 +137,7 @@ let gameState = {
     particles: [],
     // Near-miss tracking
     nearMissCount: 0,
+    checkedObstacleIds: new Set(), // Track obstacles checked for near-miss
 };
 
 // UI elements
@@ -2392,6 +2396,8 @@ function resetGame() {
         lastActionTime: 0
     };
     gameState.nearMissCount = 0;
+    gameState.checkedObstacleIds = new Set(); // Clear near-miss tracking
+    obstacleIdCounter = 0; // Reset obstacle ID counter
     
     // Reset score to 0
     gameState.score = 0;
@@ -2557,6 +2563,7 @@ function spawnObstacle() {
     }
     
     gameState.obstacles.push({
+        id: ++obstacleIdCounter, // Unique ID for tracking
         x: GAME_WIDTH,
         y: GAME_HEIGHT - GROUND_HEIGHT - height,
         width: width,
@@ -2903,6 +2910,7 @@ function drawGame() {
 
 let lastTime = 0;
 let animationFrameId = null; // Track the animation frame ID
+let gameTime = 0; // Track total game time for animations
 
 function animationLoop(timestamp = 0) {
     // Safety check for game state
@@ -2923,6 +2931,7 @@ function animationLoop(timestamp = 0) {
     // If lastTime is 0 (first frame or after unpause), use a small default delta
     const deltaTime = (lastTime === 0) ? 16 : Math.min(timestamp - lastTime, 100);
     lastTime = timestamp;
+    gameTime += deltaTime; // Track total game time
     
     try {
         // Update game elements
@@ -2933,6 +2942,7 @@ function animationLoop(timestamp = 0) {
         updateSmoke(deltaTime); // Update smoke particles
         updateParticles(deltaTime); // Update dust/effect particles
         updatePointIndicators(deltaTime); // Update point indicators
+        updateCombo(performance.now()); // Update combo system timing
         updateBackground();
         checkCollisions();
         
@@ -4257,26 +4267,29 @@ function playSound(soundName) {
 function increaseCombo() {
     gameState.combo.count++;
     gameState.combo.multiplier = Math.min(1 + (gameState.combo.count * 0.2), COMBO_MAX_MULTIPLIER);
-    gameState.combo.lastActionTime = Date.now();
+    gameState.combo.lastActionTime = performance.now(); // Use performance.now() for consistency
     
     // Track max combo
     if (gameState.combo.count > gameState.combo.maxCombo) {
         gameState.combo.maxCombo = gameState.combo.count;
     }
-    
-    // Clear existing timer and set new one
-    if (gameState.combo.timer) {
-        clearTimeout(gameState.combo.timer);
+}
+
+// Check if combo should be reset (called from animation loop using deltaTime)
+function updateCombo(currentTime) {
+    if (gameState.combo.count > 0 && gameState.combo.lastActionTime > 0) {
+        const timeSinceLastAction = currentTime - gameState.combo.lastActionTime;
+        if (timeSinceLastAction >= COMBO_TIMEOUT) {
+            resetCombo();
+        }
     }
-    
-    gameState.combo.timer = setTimeout(resetCombo, COMBO_TIMEOUT);
 }
 
 // Reset combo when timer expires or player gets hit
 function resetCombo() {
     gameState.combo.count = 0;
     gameState.combo.multiplier = 1;
-    gameState.combo.timer = null;
+    gameState.combo.lastActionTime = 0;
 }
 
 // Draw combo counter on screen
@@ -4286,8 +4299,8 @@ function drawComboCounter() {
     const comboText = `${gameState.combo.count}x COMBO!`;
     const multiplierText = `(${gameState.combo.multiplier.toFixed(1)}x points)`;
     
-    // Calculate pulsing effect based on combo count
-    const pulseScale = 1 + Math.sin(Date.now() / 100) * 0.1 * Math.min(gameState.combo.count / 5, 1);
+    // Calculate pulsing effect based on combo count using gameTime variable
+    const pulseScale = 1 + Math.sin(gameTime / 100) * 0.1 * Math.min(gameState.combo.count / 5, 1);
     const baseFontSize = 28 + Math.min(gameState.combo.count * 2, 20);
     
     ctx.save();
@@ -4343,7 +4356,8 @@ function getComboColor(count) {
 
 // Check for near-miss with obstacles (player barely avoids)
 function checkNearMiss(obstacle) {
-    if (obstacle.nearMissChecked) return;
+    // Skip if already checked (using Set for better tracking)
+    if (gameState.checkedObstacleIds.has(obstacle.id)) return;
     
     const nearMissDistance = 15;
     const playerRight = gameState.dimbadimba.x + gameState.dimbadimba.width;
@@ -4355,8 +4369,8 @@ function checkNearMiss(obstacle) {
     if (playerRight > obstacleLeft && playerRight < obstacleLeft + nearMissDistance) {
         // Check if player was jumping over (bottom of player near top of obstacle)
         if (playerBottom < obstacleTop + 20 && playerBottom > obstacleTop - 30) {
-            // Near miss!
-            obstacle.nearMissChecked = true;
+            // Near miss! Mark as checked using Set
+            gameState.checkedObstacleIds.add(obstacle.id);
             gameState.nearMissCount++;
             
             // Award points
