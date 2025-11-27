@@ -19,12 +19,19 @@ const POWERUP_SPAWN_CHANCE = 0.15; // Chance of spawning a power-up when an obst
 const INITIAL_LIVES = 3; // Number of lives player starts with
 const INVINCIBILITY_TIME = 1500; // Time (ms) of invincibility after hit
 
+// Combo system constants
+const COMBO_TIMEOUT = 2000; // Time in ms before combo resets
+const COMBO_MAX_MULTIPLIER = 5; // Maximum combo multiplier
+
 // Smoke effect constants
 const MAX_SMOKE_PARTICLES = 25;  // Increased from 20
 const SMOKE_SPAWN_RATE = 80;     // Reduced from 100 ms for more frequent puffs
 const SMOKE_SIZE_MIN = 4;        // Reduced from 5 
 const SMOKE_SIZE_MAX = 12;       // Reduced from 15
 const SMOKE_LIFETIME = 2400;     // Increased from 2000 ms for longer-lasting smoke
+
+// Unique ID counter for obstacles
+let obstacleIdCounter = 0;
 
 // PWA Installation Variables
 let deferredPrompt;
@@ -118,6 +125,19 @@ let gameState = {
     lives: INITIAL_LIVES,
     isInvincible: false,
     invincibilityTimer: 0,
+    // Combo system state
+    combo: {
+        count: 0,
+        multiplier: 1,
+        timer: null,
+        maxCombo: 0, // Track best combo in this run
+        lastActionTime: 0
+    },
+    // Particle effects
+    particles: [],
+    // Near-miss tracking
+    nearMissCount: 0,
+    checkedObstacleIds: new Set(), // Track obstacles checked for near-miss
 };
 
 // UI elements
@@ -2358,6 +2378,7 @@ function resetGame() {
     gameState.coins = [];
     gameState.powerups = [];
     gameState.pointIndicators = []; // Clear any point indicators
+    gameState.particles = []; // Clear dust/effect particles
     gameState.activePowerups = {};
     gameState.timeSinceLastObstacle = 0;
     gameState.timeSinceLastCoin = 0;
@@ -2365,6 +2386,18 @@ function resetGame() {
     gameState.firstObstacleSpawned = false; // Reset first obstacle flag
     gameState.scoreMultiplier = 1;
     gameState.paused = false; // Make sure the game isn't paused
+    
+    // Reset combo system
+    gameState.combo = {
+        count: 0,
+        multiplier: 1,
+        timer: null,
+        maxCombo: 0,
+        lastActionTime: 0
+    };
+    gameState.nearMissCount = 0;
+    gameState.checkedObstacleIds = new Set(); // Clear near-miss tracking
+    obstacleIdCounter = 0; // Reset obstacle ID counter
     
     // Reset score to 0
     gameState.score = 0;
@@ -2417,6 +2450,9 @@ function jump() {
         gameState.dimbadimba.jumping = true;
         playSound('jump');
         
+        // Create jump dust particles
+        createJumpDustParticles();
+        
         // Start arm rotation animation on jump
         gameState.dimbadimba.isArmRotating = true;
         gameState.dimbadimba.armRotation = 0;
@@ -2425,6 +2461,9 @@ function jump() {
 }
 
 function updatePlayer(deltaTime) {
+    // Track if player was in air before update
+    const wasJumping = gameState.dimbadimba.jumping;
+    
     // Apply gravity
     gameState.dimbadimba.velocityY += gameState.gravity;
     gameState.dimbadimba.y += gameState.dimbadimba.velocityY;
@@ -2435,6 +2474,11 @@ function updatePlayer(deltaTime) {
         gameState.dimbadimba.y = groundY;
         gameState.dimbadimba.velocityY = 0;
         gameState.dimbadimba.jumping = false;
+        
+        // Create landing dust particles if just landed
+        if (wasJumping) {
+            createLandingDustParticles();
+        }
     }
     
     // Update arm rotation animation if active
@@ -2519,6 +2563,7 @@ function spawnObstacle() {
     }
     
     gameState.obstacles.push({
+        id: ++obstacleIdCounter, // Unique ID for tracking
         x: GAME_WIDTH,
         y: GAME_HEIGHT - GROUND_HEIGHT - height,
         width: width,
@@ -2830,6 +2875,12 @@ function drawGame() {
     // Draw point indicators
     drawPointIndicators();
     
+    // Draw particles (dust effects, etc.)
+    drawParticles();
+    
+    // Draw combo counter
+    drawComboCounter();
+    
     // Draw "paused" text if game is paused
     if (gameState.paused && gameState.running) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -2859,6 +2910,7 @@ function drawGame() {
 
 let lastTime = 0;
 let animationFrameId = null; // Track the animation frame ID
+let gameTime = 0; // Track total game time for animations
 
 function animationLoop(timestamp = 0) {
     // Safety check for game state
@@ -2879,6 +2931,7 @@ function animationLoop(timestamp = 0) {
     // If lastTime is 0 (first frame or after unpause), use a small default delta
     const deltaTime = (lastTime === 0) ? 16 : Math.min(timestamp - lastTime, 100);
     lastTime = timestamp;
+    gameTime += deltaTime; // Track total game time
     
     try {
         // Update game elements
@@ -2887,9 +2940,16 @@ function animationLoop(timestamp = 0) {
         updateCoins(deltaTime);
         updatePowerups(deltaTime);
         updateSmoke(deltaTime); // Update smoke particles
+        updateParticles(deltaTime); // Update dust/effect particles
         updatePointIndicators(deltaTime); // Update point indicators
+        updateCombo(performance.now()); // Update combo system timing
         updateBackground();
         checkCollisions();
+        
+        // Check for near-misses on obstacles
+        gameState.obstacles.forEach(obstacle => {
+            checkNearMiss(obstacle);
+        });
         
         // Increase game speed over time
         gameState.speed += SPEED_INCREMENT * deltaTime;
@@ -4014,6 +4074,9 @@ function handleCollision() {
     // Play hit sound
     playSound('hit');
     
+    // Reset combo on getting hit
+    resetCombo();
+    
     // Update life display
     updateLivesDisplay();
     
@@ -4049,8 +4112,11 @@ function checkCoinCollisions() {
             // Remove coin from array
             gameState.coins.splice(i, 1);
             
-            // Calculate points (accounting for multiplier)
-            const pointsEarned = 50 * gameState.scoreMultiplier;
+            // Increase combo for coin collection
+            increaseCombo();
+            
+            // Calculate points (accounting for multiplier AND combo multiplier)
+            const pointsEarned = Math.floor(50 * gameState.scoreMultiplier * gameState.combo.multiplier);
             
             // Add to score
             gameState.score += pointsEarned;
@@ -4192,6 +4258,245 @@ function playSound(soundName) {
         case 'hit':
             sounds.hit();
             break;
+    }
+}
+
+// ========== COMBO SYSTEM ==========
+
+// Increase combo count when collecting coins or successful near-misses
+function increaseCombo() {
+    gameState.combo.count++;
+    gameState.combo.multiplier = Math.min(1 + (gameState.combo.count * 0.2), COMBO_MAX_MULTIPLIER);
+    gameState.combo.lastActionTime = performance.now(); // Use performance.now() for consistency
+    
+    // Track max combo
+    if (gameState.combo.count > gameState.combo.maxCombo) {
+        gameState.combo.maxCombo = gameState.combo.count;
+    }
+}
+
+// Check if combo should be reset (called from animation loop using deltaTime)
+function updateCombo(currentTime) {
+    if (gameState.combo.count > 0 && gameState.combo.lastActionTime > 0) {
+        const timeSinceLastAction = currentTime - gameState.combo.lastActionTime;
+        if (timeSinceLastAction >= COMBO_TIMEOUT) {
+            resetCombo();
+        }
+    }
+}
+
+// Reset combo when timer expires or player gets hit
+function resetCombo() {
+    gameState.combo.count = 0;
+    gameState.combo.multiplier = 1;
+    gameState.combo.lastActionTime = 0;
+}
+
+// Draw combo counter on screen
+function drawComboCounter() {
+    if (gameState.combo.count < 2) return;
+    
+    const comboText = `${gameState.combo.count}x COMBO!`;
+    const multiplierText = `(${gameState.combo.multiplier.toFixed(1)}x points)`;
+    
+    // Calculate pulsing effect based on combo count using gameTime variable
+    const pulseScale = 1 + Math.sin(gameTime / 100) * 0.1 * Math.min(gameState.combo.count / 5, 1);
+    const baseFontSize = 28 + Math.min(gameState.combo.count * 2, 20);
+    
+    ctx.save();
+    
+    // Position in upper right area
+    const x = GAME_WIDTH - 30;
+    const y = 120;
+    
+    // Add glow effect based on combo count
+    ctx.shadowColor = getComboColor(gameState.combo.count);
+    ctx.shadowBlur = 10 + gameState.combo.count * 2;
+    
+    // Draw combo text
+    ctx.font = `bold ${Math.floor(baseFontSize * pulseScale)}px Arial, sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    
+    // Text outline
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.lineWidth = 4;
+    ctx.strokeText(comboText, x, y);
+    
+    // Text fill with gradient
+    const gradient = ctx.createLinearGradient(x - 200, y - 20, x, y + 20);
+    gradient.addColorStop(0, getComboColor(gameState.combo.count));
+    gradient.addColorStop(0.5, '#ffffff');
+    gradient.addColorStop(1, getComboColor(gameState.combo.count));
+    ctx.fillStyle = gradient;
+    ctx.fillText(comboText, x, y);
+    
+    // Draw multiplier text smaller below
+    ctx.font = `bold ${Math.floor(16 * pulseScale)}px Arial, sans-serif`;
+    ctx.shadowBlur = 5;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeText(multiplierText, x, y + 30);
+    ctx.fillStyle = '#ffdd57';
+    ctx.fillText(multiplierText, x, y + 30);
+    
+    ctx.restore();
+}
+
+// Get color based on combo count
+function getComboColor(count) {
+    if (count >= 15) return '#ff00ff'; // Purple for legendary
+    if (count >= 10) return '#ff6600'; // Orange for epic
+    if (count >= 7) return '#ffdd00';  // Gold for great
+    if (count >= 4) return '#00ff00';  // Green for good
+    return '#ffffff'; // White for starting
+}
+
+// ========== NEAR-MISS SYSTEM ==========
+
+// Check for near-miss with obstacles (player barely avoids)
+function checkNearMiss(obstacle) {
+    // Skip if already checked (using Set for better tracking)
+    if (gameState.checkedObstacleIds.has(obstacle.id)) return;
+    
+    const nearMissDistance = 15;
+    const playerRight = gameState.dimbadimba.x + gameState.dimbadimba.width;
+    const obstacleLeft = obstacle.x;
+    const playerBottom = gameState.dimbadimba.y + gameState.dimbadimba.height;
+    const obstacleTop = obstacle.y;
+    
+    // Check if player just passed the obstacle very closely
+    if (playerRight > obstacleLeft && playerRight < obstacleLeft + nearMissDistance) {
+        // Check if player was jumping over (bottom of player near top of obstacle)
+        if (playerBottom < obstacleTop + 20 && playerBottom > obstacleTop - 30) {
+            // Near miss! Mark as checked using Set
+            gameState.checkedObstacleIds.add(obstacle.id);
+            gameState.nearMissCount++;
+            
+            // Award points
+            const nearMissPoints = 10 * gameState.scoreMultiplier * gameState.combo.multiplier;
+            gameState.score += Math.floor(nearMissPoints);
+            updateScore();
+            
+            // Increase combo
+            increaseCombo();
+            
+            // Visual feedback
+            createNearMissIndicator(
+                gameState.dimbadimba.x + gameState.dimbadimba.width,
+                gameState.dimbadimba.y + gameState.dimbadimba.height / 2
+            );
+        }
+    }
+}
+
+// Create near-miss visual indicator
+function createNearMissIndicator(x, y) {
+    gameState.pointIndicators.push({
+        x: x,
+        y: y,
+        points: 'CLOSE!',
+        opacity: 1.0,
+        scale: 0.8,
+        lifetime: 0,
+        maxLifetime: 1000,
+        isNearMiss: true
+    });
+}
+
+// ========== PARTICLE SYSTEM ==========
+
+// Create jump dust particles
+function createJumpDustParticles() {
+    const particleCount = 8;
+    const baseX = gameState.dimbadimba.x + gameState.dimbadimba.width / 2;
+    const baseY = GAME_HEIGHT - GROUND_HEIGHT;
+    
+    for (let i = 0; i < particleCount; i++) {
+        gameState.particles.push({
+            x: baseX + (Math.random() - 0.5) * 40,
+            y: baseY,
+            vx: (Math.random() - 0.5) * 6,
+            vy: -Math.random() * 4 - 2,
+            size: 4 + Math.random() * 6,
+            baseColor: gameState.dayMode ? 
+                { r: 139, g: 69, b: 19 } : 
+                { r: 80, g: 80, b: 80 },
+            baseAlpha: 0.4 + Math.random() * 0.3,
+            lifetime: 400 + Math.random() * 200,
+            age: 0,
+            opacity: 1
+        });
+    }
+}
+
+// Create landing dust particles
+function createLandingDustParticles() {
+    const particleCount = 12;
+    const baseX = gameState.dimbadimba.x + gameState.dimbadimba.width / 2;
+    const baseY = GAME_HEIGHT - GROUND_HEIGHT;
+    
+    for (let i = 0; i < particleCount; i++) {
+        // Full circle distribution for more realistic landing dust
+        const angle = (2 * Math.PI / particleCount) * i;
+        // But only allow particles to go upward and sideways (not downward into ground)
+        const vy = Math.sin(angle) < 0 ? Math.sin(angle) * 2 : -Math.random() * 2;
+        gameState.particles.push({
+            x: baseX,
+            y: baseY,
+            vx: Math.cos(angle) * (3 + Math.random() * 3),
+            vy: vy - Math.random(),
+            size: 5 + Math.random() * 5,
+            baseColor: gameState.dayMode ? 
+                { r: 139, g: 69, b: 19 } : 
+                { r: 80, g: 80, b: 80 },
+            baseAlpha: 0.5 + Math.random() * 0.3,
+            lifetime: 500 + Math.random() * 200,
+            age: 0,
+            opacity: 1
+        });
+    }
+}
+
+// Update particles
+function updateParticles(deltaTime) {
+    for (let i = gameState.particles.length - 1; i >= 0; i--) {
+        const particle = gameState.particles[i];
+        
+        particle.age += deltaTime;
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.vy += 0.1; // Gravity
+        
+        // Fade out - update opacity based on life ratio
+        const lifeRatio = particle.age / particle.lifetime;
+        particle.opacity = (1 - lifeRatio) * (particle.baseAlpha || 1);
+        particle.size *= 0.98;
+        
+        // Remove dead particles
+        if (particle.age >= particle.lifetime || particle.size < 1) {
+            gameState.particles.splice(i, 1);
+        }
+    }
+}
+
+// Draw particles
+function drawParticles() {
+    for (const particle of gameState.particles) {
+        ctx.save();
+        ctx.globalAlpha = particle.opacity || 1;
+        
+        // Use baseColor if available, otherwise fall back to color string
+        if (particle.baseColor) {
+            ctx.fillStyle = `rgba(${particle.baseColor.r}, ${particle.baseColor.g}, ${particle.baseColor.b}, 1)`;
+        } else if (particle.color) {
+            ctx.fillStyle = particle.color;
+        }
+        
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
     }
 }
 
