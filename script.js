@@ -4419,11 +4419,13 @@ function createJumpDustParticles() {
             vx: (Math.random() - 0.5) * 6,
             vy: -Math.random() * 4 - 2,
             size: 4 + Math.random() * 6,
-            color: gameState.dayMode ? 
-                `rgba(139, 69, 19, ${0.4 + Math.random() * 0.3})` : 
-                `rgba(80, 80, 80, ${0.4 + Math.random() * 0.3})`,
+            baseColor: gameState.dayMode ? 
+                { r: 139, g: 69, b: 19 } : 
+                { r: 80, g: 80, b: 80 },
+            baseAlpha: 0.4 + Math.random() * 0.3,
             lifetime: 400 + Math.random() * 200,
-            age: 0
+            age: 0,
+            opacity: 1
         });
     }
 }
@@ -4435,18 +4437,23 @@ function createLandingDustParticles() {
     const baseY = GAME_HEIGHT - GROUND_HEIGHT;
     
     for (let i = 0; i < particleCount; i++) {
-        const angle = (Math.PI / particleCount) * i;
+        // Full circle distribution for more realistic landing dust
+        const angle = (2 * Math.PI / particleCount) * i;
+        // But only allow particles to go upward and sideways (not downward into ground)
+        const vy = Math.sin(angle) < 0 ? Math.sin(angle) * 2 : -Math.random() * 2;
         gameState.particles.push({
             x: baseX,
             y: baseY,
             vx: Math.cos(angle) * (3 + Math.random() * 3),
-            vy: -Math.abs(Math.sin(angle)) * 2 - Math.random(),
+            vy: vy - Math.random(),
             size: 5 + Math.random() * 5,
-            color: gameState.dayMode ? 
-                `rgba(139, 69, 19, ${0.5 + Math.random() * 0.3})` : 
-                `rgba(80, 80, 80, ${0.5 + Math.random() * 0.3})`,
+            baseColor: gameState.dayMode ? 
+                { r: 139, g: 69, b: 19 } : 
+                { r: 80, g: 80, b: 80 },
+            baseAlpha: 0.5 + Math.random() * 0.3,
             lifetime: 500 + Math.random() * 200,
-            age: 0
+            age: 0,
+            opacity: 1
         });
     }
 }
@@ -4461,9 +4468,9 @@ function updateParticles(deltaTime) {
         particle.y += particle.vy;
         particle.vy += 0.1; // Gravity
         
-        // Fade out
+        // Fade out - update opacity based on life ratio
         const lifeRatio = particle.age / particle.lifetime;
-        particle.opacity = 1 - lifeRatio;
+        particle.opacity = (1 - lifeRatio) * (particle.baseAlpha || 1);
         particle.size *= 0.98;
         
         // Remove dead particles
@@ -4478,7 +4485,14 @@ function drawParticles() {
     for (const particle of gameState.particles) {
         ctx.save();
         ctx.globalAlpha = particle.opacity || 1;
-        ctx.fillStyle = particle.color;
+        
+        // Use baseColor if available, otherwise fall back to color string
+        if (particle.baseColor) {
+            ctx.fillStyle = `rgba(${particle.baseColor.r}, ${particle.baseColor.g}, ${particle.baseColor.b}, 1)`;
+        } else if (particle.color) {
+            ctx.fillStyle = particle.color;
+        }
+        
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
         ctx.fill();
