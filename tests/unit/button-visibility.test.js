@@ -66,25 +66,26 @@ describe('Start Button Visibility', () => {
         Object.defineProperty(window, 'innerWidth', {configurable: true, value: 667});
         Object.defineProperty(window, 'innerHeight', {configurable: true, value: 375});
         
-        // Create a situation where the button would be off-screen
-        const startScreen = document.getElementById('startScreen');
-        startScreen.style.height = '300px';
-        startScreen.style.overflow = 'auto';
-        
-        // Position the button beyond the viewport height
         const startButton = document.getElementById('startButton');
-        startButton.style.marginTop = '400px';
+
+        // Spy on scrollIntoView to verify it gets called when button is off-screen
+        const scrollSpy = jest.fn();
+        startButton.scrollIntoView = scrollSpy;
+
+        // Simulate the button being below the viewport by mocking getBoundingClientRect
+        startButton.getBoundingClientRect = jest.fn().mockReturnValue({
+            top: 400,
+            bottom: 440,
+            left: 0,
+            right: 200,
+            width: 200,
+            height: 40
+        });
         
         // Call the function being tested
         window.ensureStartButtonVisibility();
         
-        // Check that the function would attempt to scroll the button into view
-        // In a real browser, scrollIntoView would be called
-        // Here we just check if our mock implementation was triggered
-        
-        // For a real implementation, we would need to run this in a browser environment
-        // with Jest and JSDOM, this is as far as we can test without a full browser
-        const rect = startButton.getBoundingClientRect();
-        expect(startScreen.scrollTop).toBeGreaterThan(0);
+        // In jsdom, scrollIntoView should be called when button.bottom > innerHeight
+        expect(scrollSpy).toHaveBeenCalledWith({block: 'center'});
     });
 }); 
