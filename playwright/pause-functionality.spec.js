@@ -18,28 +18,24 @@ test.describe('Game Pause Functionality', () => {
   test('should pause and unpause the game with P key', async ({ page }) => {
     // Pause the game
     await page.keyboard.press('p');
-    
-    // Check for pause overlay/text
-    const pauseTextVisible = await page.evaluate(() => {
-      const canvas = document.getElementById('gameCanvas');
-      const ctx = canvas.getContext('2d');
-      
-      // This is a simple check that won't be 100% accurate in an automated test,
-      // but it's a reasonable approximation for testing purposes
-      return ctx.fillText.toString().includes('PAUSED');
+    await page.waitForTimeout(200);
+
+    // Check game state is paused
+    const isPaused = await page.evaluate(() => {
+      return gameState && gameState.running && gameState.paused;
     });
-    
-    expect(pauseTextVisible).toBeTruthy();
-    
+
+    expect(isPaused).toBeTruthy();
+
     // Unpause the game
     await page.keyboard.press('p');
-    
-    // Check that the game is running (character should be moving/animated)
-    // This can be difficult to test directly, so we'll check the game state
+    await page.waitForTimeout(200);
+
+    // Check that the game is running and not paused
     const gameRunning = await page.evaluate(() => {
       return gameState && gameState.running && !gameState.paused;
     });
-    
+
     expect(gameRunning).toBeTruthy();
   });
   
@@ -72,33 +68,32 @@ test.describe('Game Pause Functionality', () => {
     expect(gameValid).toBeTruthy();
     
     // Check that character movement is correct (not reversed)
-    // We'll check this by ensuring obstacles are moving in the expected direction
     const obstaclesMovingCorrectly = await page.evaluate(() => {
-      // Create an obstacle if none exist
+      // Ensure an obstacle exists for testing
       if (gameState.obstacles.length === 0) {
         gameState.obstacles.push({
-          x: GAME_WIDTH, // Should start at the right edge
+          id: ++obstacleIdCounter,
+          x: GAME_WIDTH,
           y: GAME_HEIGHT - 50,
           width: 30,
           height: 30,
           shapeIndex: 0
         });
-        return true; // Just created an obstacle, can't check movement yet
       }
-      
-      // Store initial x position
+
       const initialX = gameState.obstacles[0].x;
-      
-      // Wait a short time for animation to progress
+
       return new Promise(resolve => {
         setTimeout(() => {
-          // Check if obstacle moved from right to left (x should decrease)
-          const newX = gameState.obstacles[0].x;
-          resolve(newX < initialX);
-        }, 100);
+          if (gameState.obstacles.length === 0) {
+            resolve(true);
+            return;
+          }
+          resolve(gameState.obstacles[0].x < initialX);
+        }, 300);
       });
     });
-    
+
     expect(obstaclesMovingCorrectly).toBeTruthy();
   });
   
