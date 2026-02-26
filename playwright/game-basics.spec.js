@@ -90,30 +90,30 @@ test.describe('Pixel Runner Game Basic Functionality', () => {
     // Start the game
     await page.click('#startButton');
     await page.waitForTimeout(500);
-    
-    // Force a collision by manipulating game state directly
+
+    // Force game over by depleting all lives via collisions
     await page.evaluate(() => {
-      // Create an obstacle right in front of the player
+      gameState.lives = 1;
+      gameState.isInvincible = false;
       gameState.obstacles.push({
-        x: gameState.dimbadimba.x + 5, // Just ahead of player
+        id: ++obstacleIdCounter,
+        x: gameState.dimbadimba.x + 5,
         y: gameState.dimbadimba.y,
         width: 30,
         height: 50,
         shapeIndex: 0
       });
-      
-      // Update to trigger collision check
       checkCollisions();
     });
-    
+
     // Wait for game over screen to appear
     await page.waitForSelector('#game-over:not(.hidden)', { timeout: 5000 });
-    
+
     // Check that game is no longer running
     const gameRunning = await page.evaluate(() => {
       return gameState.running;
     });
-    
+
     expect(gameRunning).toBeFalsy();
   });
   

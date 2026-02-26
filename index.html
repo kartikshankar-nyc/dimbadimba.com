@@ -315,24 +315,6 @@
         }
     </script>
     
-    <script>
-        // Add some variables to track game state
-    </script>
-    
-    <!-- Add our new JavaScript files -->
-    <script type="module">
-        import adManager from './ads.js';
-        
-        // Initialize ads after the game is loaded
-        document.addEventListener('DOMContentLoaded', async function() {
-            await adManager.initialize();
-            
-            // Create ad slots
-            adManager.createAdSlot('header-ad', ADSENSE_CONFIG.adSlots.header);
-            adManager.createAdSlot('footer-ad', ADSENSE_CONFIG.adSlots.footer);
-        });
-    </script>
-    
     <!-- Function to handle fullscreen -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {

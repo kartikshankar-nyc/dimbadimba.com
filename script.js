@@ -1761,17 +1761,16 @@ function setupEventListeners() {
     
     // Touch events for mobile
     canvas.addEventListener('touchstart', function(e) {
-        e.preventDefault(); // Prevent default behavior to avoid scrolling
+        e.preventDefault();
 
         if (!gameState.running && !gameState.paused) {
-            // Start game if not running
-            startGame();
+            if (gameOverScreen && !gameOverScreen.classList.contains('hidden')) {
+                restartGame();
+            } else {
+                startGame();
+            }
         } else if (gameState.running && !gameState.dimbadimba.jumping) {
-            // Jump if game is running
             jump();
-        } else if (gameState.gameOver) {
-            // Restart if game over
-            restartGame();
         }
     });
     
@@ -2134,96 +2133,6 @@ function openShareDialog() {
     });
 }
 
-// Modified sharing functions to handle general sharing (not just scores)
-function shareOnX(score) {
-    let text, url;
-    
-    if (typeof score === 'number') {
-        // Share score
-        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score?`;
-    } else {
-        // Share game
-        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game!`;
-    }
-    
-    url = window.location.href.split('?')[0]; // Remove any query parameters
-    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    window.open(shareUrl, '_blank');
-}
-
-function shareOnFacebook(score) {
-    let quote, url;
-    
-    if (typeof score === 'number') {
-        // Share score
-        quote = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score?`;
-    } else {
-        // Share game
-        quote = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game!`;
-    }
-    
-    url = window.location.href.split('?')[0]; // Remove any query parameters
-    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(quote)}`;
-    window.open(shareUrl, '_blank');
-}
-
-function shareOnWhatsApp(score) {
-    let text;
-    
-    if (typeof score === 'number') {
-        // Share score
-        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score? Play now at ${window.location.href.split('?')[0]}`;
-    } else {
-        // Share game
-        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game! Play now at ${window.location.href.split('?')[0]}`;
-    }
-    
-    const shareUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(shareUrl, '_blank');
-}
-
-function copyShareLink(score) {
-    let text;
-    
-    if (typeof score === 'number') {
-        // Share score
-        text = `🎮 I scored ${score} points in Dimbadimba Pixel Runner! Can you beat my score? Play now at ${window.location.href.split('?')[0]}`;
-    } else {
-        // Share game
-        text = `🎮 Check out Dimbadimba Pixel Runner - a fun endless runner game! Play now at ${window.location.href.split('?')[0]}`;
-    }
-    
-    // Try to use the clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text)
-            .then(() => {
-                // Show success message
-                showShareNotification('Link copied to clipboard!');
-            })
-            .catch(err => {
-                console.error('Failed to copy text: ', err);
-                // Fallback to prompt
-                prompt('Copy this link to share:', text);
-            });
-    } else {
-        // Fallback for browsers that don't support clipboard API
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        
-        try {
-            document.execCommand('copy');
-            showShareNotification('Link copied to clipboard!');
-        } catch (err) {
-            console.error('Failed to copy text: ', err);
-            prompt('Copy this link to share:', text);
-        }
-        
-        document.body.removeChild(textArea);
-    }
-}
-
 function updateDifficultyButtons() {
     // Check if the buttons exist before trying to update them
     if (!easyModeBtn || !normalModeBtn || !hardModeBtn) {
@@ -2418,6 +2327,7 @@ function resetGame() {
     gameState.lives = INITIAL_LIVES;
     gameState.isInvincible = false;
     gameState.invincibilityTimer = 0;
+    updateLivesDisplay();
 }
 
 // Add a pause toggle cooldown to prevent rapid toggling
@@ -2894,18 +2804,6 @@ function drawGame() {
         ctx.fillText('Press P to continue', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 40);
     }
     
-    // Draw player with invincibility effect if active
-    ctx.save();
-    
-    // Add flashing effect when invincible
-    if (gameState.isInvincible) {
-        // Make character flash by changing opacity
-        ctx.globalAlpha = 0.5 + Math.sin(gameState.invincibilityTimer / 100) * 0.5;
-    }
-    
-    // ... existing player drawing code ...
-    
-    ctx.restore();
 }
 
 let lastTime = 0;
@@ -2974,17 +2872,16 @@ function animationLoop(timestamp = 0) {
 function setupTouchControls() {
     // Handle touch events for game canvas (jumping)
     canvas.addEventListener('touchstart', function(e) {
-        e.preventDefault(); // Prevent default behavior to avoid scrolling
+        e.preventDefault();
 
         if (!gameState.running && !gameState.paused) {
-            // Start game if not running
-            startGame();
+            if (gameOverScreen && !gameOverScreen.classList.contains('hidden')) {
+                restartGame();
+            } else {
+                startGame();
+            }
         } else if (gameState.running && !gameState.dimbadimba.jumping) {
-            // Jump if game is running
             jump();
-        } else if (gameState.gameOver) {
-            // Restart if game over
-            restartGame();
         }
     });
 
@@ -3008,40 +2905,6 @@ function setupTouchControls() {
         toggleSound();
         this.textContent = gameState.soundEnabled ? '🔊' : '🔇';
     });
-}
-
-function handleDeviceOrientation() {
-    // Check if device is in portrait mode (height > width)
-    const isPortrait = window.innerHeight > window.innerWidth;
-    
-    // Show orientation message for small screens in portrait mode, but don't force it
-    const orientationMsg = document.getElementById('orientation-message') || 
-                          createOrientationMessage();
-    
-    if (isPortrait && window.innerWidth < 600) {
-        // Show suggestion message without pausing the game
-        orientationMsg.classList.remove('hidden');
-        
-        // Add a dismiss button to the message
-        if (!document.getElementById('dismiss-orientation')) {
-            const dismissBtn = document.createElement('button');
-            dismissBtn.id = 'dismiss-orientation';
-            dismissBtn.innerText = 'Continue in Portrait Mode';
-            dismissBtn.addEventListener('click', function() {
-                orientationMsg.classList.add('hidden');
-            });
-            
-            const orientationContent = orientationMsg.querySelector('.orientation-content');
-            if (orientationContent && !orientationContent.querySelector('#dismiss-orientation')) {
-                orientationContent.appendChild(dismissBtn);
-            }
-        }
-    } else {
-        orientationMsg.classList.add('hidden');
-    }
-    
-    // Adjust game height to account for browser UI
-    adjustGameHeight();
 }
 
 // Create and manage orientation message
