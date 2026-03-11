@@ -22,6 +22,55 @@ const INVINCIBILITY_TIME = 1500; // Time (ms) of invincibility after hit
 // Combo system constants
 const COMBO_TIMEOUT = 2000; // Time in ms before combo resets
 const COMBO_MAX_MULTIPLIER = 5; // Maximum combo multiplier
+const NEAR_MISS_BASE_POINTS = 15;
+
+// Special coin constants
+const SPECIAL_COIN_SPAWN_CHANCE = 0.2;
+const SPECIAL_COIN_TYPES = {
+    JUMP_2X: 'jump2x',
+    JUMP_3X: 'jump3x',
+    HANGTIME: 'hangtime',
+    AIR_JUMP: 'airjump'
+};
+
+const SPECIAL_COIN_CONFIG = {
+    [SPECIAL_COIN_TYPES.JUMP_2X]: {
+        label: 'JUMP x2',
+        shortLabel: 'J2',
+        color: '#4fc3f7',
+        duration: 7000,
+        points: 90,
+        weight: 4,
+        jumpMultiplier: 2
+    },
+    [SPECIAL_COIN_TYPES.JUMP_3X]: {
+        label: 'JUMP x3',
+        shortLabel: 'J3',
+        color: '#ff6b6b',
+        duration: 4500,
+        points: 130,
+        weight: 2,
+        jumpMultiplier: 3
+    },
+    [SPECIAL_COIN_TYPES.HANGTIME]: {
+        label: 'HANGTIME',
+        shortLabel: 'AIR',
+        color: '#9b59b6',
+        duration: 8000,
+        points: 95,
+        weight: 3,
+        gravityMultiplier: 0.55
+    },
+    [SPECIAL_COIN_TYPES.AIR_JUMP]: {
+        label: 'AIR JUMP',
+        shortLabel: 'DJ',
+        color: '#2ecc71',
+        duration: 8500,
+        points: 110,
+        weight: 3,
+        extraAirJumps: 1
+    }
+};
 
 // Smoke effect constants
 const MAX_SMOKE_PARTICLES = 25;  // Increased from 20
@@ -138,6 +187,7 @@ let gameState = {
     // Near-miss tracking
     nearMissCount: 0,
     checkedObstacleIds: new Set(), // Track obstacles checked for near-miss
+    airJumpsRemaining: 0
 };
 
 // UI elements
@@ -254,8 +304,19 @@ const POWERUP_TYPES = {
     SPEED: 'speed',
     SHIELD: 'shield',
     MAGNET: 'magnet',
-    DOUBLE_SCORE: 'doubleScore'
+    DOUBLE_SCORE: 'doubleScore',
+    JUMP_2X: SPECIAL_COIN_TYPES.JUMP_2X,
+    JUMP_3X: SPECIAL_COIN_TYPES.JUMP_3X,
+    HANGTIME: SPECIAL_COIN_TYPES.HANGTIME,
+    AIR_JUMP: SPECIAL_COIN_TYPES.AIR_JUMP
 };
+
+const STANDARD_POWERUP_TYPES = [
+    POWERUP_TYPES.SPEED,
+    POWERUP_TYPES.SHIELD,
+    POWERUP_TYPES.MAGNET,
+    POWERUP_TYPES.DOUBLE_SCORE
+];
 
 // Initialize the game when the DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -2306,6 +2367,7 @@ function resetGame() {
     };
     gameState.nearMissCount = 0;
     gameState.checkedObstacleIds = new Set(); // Clear near-miss tracking
+    gameState.airJumpsRemaining = 0;
     obstacleIdCounter = 0; // Reset obstacle ID counter
     
     // Reset score to 0
@@ -2354,10 +2416,45 @@ function togglePause() {
     }
 }
 
+function getEffectiveJumpForce() {
+    if (gameState.activePowerups[POWERUP_TYPES.JUMP_3X]) {
+        return gameState.jumpForce * SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.JUMP_3X].jumpMultiplier;
+    }
+    
+    if (gameState.activePowerups[POWERUP_TYPES.JUMP_2X]) {
+        return gameState.jumpForce * SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.JUMP_2X].jumpMultiplier;
+    }
+    
+    return gameState.jumpForce;
+}
+
+function getEffectiveGravity() {
+    if (gameState.activePowerups[POWERUP_TYPES.HANGTIME]) {
+        return gameState.gravity * SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.HANGTIME].gravityMultiplier;
+    }
+    
+    return gameState.gravity;
+}
+
+function getAvailableAirJumps() {
+    return gameState.activePowerups[POWERUP_TYPES.AIR_JUMP]
+        ? SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.AIR_JUMP].extraAirJumps
+        : 0;
+}
+
 function jump() {
-    if (!gameState.dimbadimba.jumping) {
-        gameState.dimbadimba.velocityY = gameState.jumpForce;
+    const canUseAirJump = gameState.dimbadimba.jumping && gameState.airJumpsRemaining > 0;
+    
+    if (!gameState.dimbadimba.jumping || canUseAirJump) {
+        gameState.dimbadimba.velocityY = getEffectiveJumpForce();
         gameState.dimbadimba.jumping = true;
+        
+        if (canUseAirJump) {
+            gameState.airJumpsRemaining--;
+        } else {
+            gameState.airJumpsRemaining = getAvailableAirJumps();
+        }
+        
         playSound('jump');
         
         // Create jump dust particles
@@ -2374,8 +2471,8 @@ function updatePlayer(deltaTime) {
     // Track if player was in air before update
     const wasJumping = gameState.dimbadimba.jumping;
     
-    // Apply gravity
-    gameState.dimbadimba.velocityY += gameState.gravity;
+    // Apply gravity (modified by hangtime when active)
+    gameState.dimbadimba.velocityY += getEffectiveGravity();
     gameState.dimbadimba.y += gameState.dimbadimba.velocityY;
     
     // Ground collision
@@ -2384,6 +2481,7 @@ function updatePlayer(deltaTime) {
         gameState.dimbadimba.y = groundY;
         gameState.dimbadimba.velocityY = 0;
         gameState.dimbadimba.jumping = false;
+        gameState.airJumpsRemaining = getAvailableAirJumps();
         
         // Create landing dust particles if just landed
         if (wasJumping) {
@@ -2430,10 +2528,13 @@ function updateObstacles(deltaTime) {
     
     // Update obstacle positions
     for (let i = gameState.obstacles.length - 1; i >= 0; i--) {
-        gameState.obstacles[i].x -= getCurrentGameSpeed();
+        const obstacle = gameState.obstacles[i];
+        obstacle.previousX = obstacle.x;
+        obstacle.x -= getCurrentGameSpeed();
         
         // Remove obstacles that are off screen
-        if (gameState.obstacles[i].x < -OBSTACLE_WIDTH * 1.5) {
+        if (obstacle.x < -OBSTACLE_WIDTH * 1.5) {
+            gameState.checkedObstacleIds.delete(obstacle.id);
             gameState.obstacles.splice(i, 1);
             // Award points for passing an obstacle
             gameState.score += 10 * gameState.scoreMultiplier;
@@ -2475,6 +2576,7 @@ function spawnObstacle() {
     gameState.obstacles.push({
         id: ++obstacleIdCounter, // Unique ID for tracking
         x: GAME_WIDTH,
+        previousX: GAME_WIDTH,
         y: GAME_HEIGHT - GROUND_HEIGHT - height,
         width: width,
         height: height,
@@ -2495,13 +2597,16 @@ function updateCoins(deltaTime) {
         gameState.coinInterval = Math.random() * 2000 + 1500;
         
         const y = Math.random() * (GAME_HEIGHT - GROUND_HEIGHT - COIN_SIZE - 20) + 20;
+        const specialType = getRandomSpecialCoinType();
         gameState.coins.push({
             x: GAME_WIDTH,
             y: y,
             width: COIN_SIZE,
             height: COIN_SIZE,
             rotation: 0,
-            magnetized: false // Track if being pulled by magnet
+            magnetized: false, // Track if being pulled by magnet
+            specialType: specialType,
+            pulseOffset: Math.random() * Math.PI * 2
         });
     }
     
@@ -2538,12 +2643,30 @@ function updateCoins(deltaTime) {
         }
         
         coin.rotation += 0.05;
+        coin.pulseOffset = (coin.pulseOffset || 0) + 0.03;
         
         // Remove coins that are off screen
         if (coin.x < -COIN_SIZE) {
             gameState.coins.splice(i, 1);
         }
     }
+}
+
+function getRandomSpecialCoinType() {
+    if (Math.random() >= SPECIAL_COIN_SPAWN_CHANCE) return null;
+    
+    const entries = Object.entries(SPECIAL_COIN_CONFIG);
+    const totalWeight = entries.reduce((sum, [, config]) => sum + config.weight, 0);
+    let roll = Math.random() * totalWeight;
+    
+    for (const [type, config] of entries) {
+        roll -= config.weight;
+        if (roll <= 0) {
+            return type;
+        }
+    }
+    
+    return entries[entries.length - 1][0];
 }
 
 function checkCollisions() {
@@ -2623,6 +2746,10 @@ function drawGame() {
             coin.width,
             coin.height
         );
+        
+        if (coin.specialType) {
+            drawSpecialCoinAura(coin);
+        }
     });
     
     // Draw power-ups
@@ -2782,6 +2909,26 @@ function drawGame() {
         );
     }
     
+    // Draw active movement power labels
+    const movementLabels = [];
+    if (gameState.activePowerups[POWERUP_TYPES.JUMP_3X]) movementLabels.push('JUMP x3');
+    else if (gameState.activePowerups[POWERUP_TYPES.JUMP_2X]) movementLabels.push('JUMP x2');
+    if (gameState.activePowerups[POWERUP_TYPES.HANGTIME]) movementLabels.push('HANGTIME');
+    if (gameState.activePowerups[POWERUP_TYPES.AIR_JUMP]) movementLabels.push(`AIR JUMP (${gameState.airJumpsRemaining})`);
+    
+    if (movementLabels.length > 0) {
+        ctx.font = 'bold 14px Arial';
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.lineWidth = 3;
+        ctx.textAlign = 'center';
+        const labelText = movementLabels.join(' • ');
+        const labelX = gameState.dimbadimba.x + gameState.dimbadimba.width / 2;
+        const labelY = gameState.dimbadimba.y - 26;
+        ctx.strokeText(labelText, labelX, labelY);
+        ctx.fillText(labelText, labelX, labelY);
+    }
+    
     // Draw point indicators
     drawPointIndicators();
     
@@ -2804,6 +2951,31 @@ function drawGame() {
         ctx.fillText('Press P to continue', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 40);
     }
     
+}
+
+function drawSpecialCoinAura(coin) {
+    const config = SPECIAL_COIN_CONFIG[coin.specialType];
+    if (!config) return;
+    
+    const centerX = coin.x + coin.width / 2;
+    const centerY = coin.y + coin.height / 2;
+    const pulse = 1 + Math.sin((coin.pulseOffset || 0) + gameTime / 130) * 0.14;
+    
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = config.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, (coin.width * 0.55) * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = config.color;
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(config.shortLabel, centerX, coin.y - 4);
+    ctx.restore();
 }
 
 let lastTime = 0;
@@ -3180,6 +3352,10 @@ function createPowerupIndicator() {
         .speed-icon { background-color: #2ecc71; }
         .magnet-icon { background-color: #9b59b6; }
         .double-score-icon { background-color: #f1c40f; }
+        .jump2x-icon { background-color: #4fc3f7; }
+        .jump3x-icon { background-color: #ff6b6b; }
+        .hangtime-icon { background-color: #9b59b6; }
+        .airjump-icon { background-color: #2ecc71; }
     `;
     document.head.appendChild(style);
 }
@@ -3223,7 +3399,7 @@ function spawnPowerup() {
     gameState.timeSinceLastPowerup = 0;
     
     // Choose a random power-up type
-    const types = Object.values(POWERUP_TYPES);
+    const types = STANDARD_POWERUP_TYPES;
     const type = types[Math.floor(Math.random() * types.length)];
     
     // Random vertical position
@@ -3286,19 +3462,27 @@ function getPowerupName(type) {
             return 'Coin Magnet';
         case POWERUP_TYPES.DOUBLE_SCORE:
             return 'Double Score';
+        case POWERUP_TYPES.JUMP_2X:
+            return 'Jump x2';
+        case POWERUP_TYPES.JUMP_3X:
+            return 'Jump x3';
+        case POWERUP_TYPES.HANGTIME:
+            return 'Hangtime';
+        case POWERUP_TYPES.AIR_JUMP:
+            return 'Air Jump';
         default:
             return 'Power-Up';
     }
 }
 
 // Activate a power-up effect
-function activatePowerup(type) {
+function activatePowerup(type, duration = POWERUP_DURATION) {
     // Play power-up sound
     sounds.powerup();
     
     // Apply power-up effect
     gameState.activePowerups[type] = {
-        timeLeft: POWERUP_DURATION,
+        timeLeft: duration,
         timerId: null
     };
     
@@ -3316,10 +3500,30 @@ function activatePowerup(type) {
         case POWERUP_TYPES.SPEED:
             // Speed effect is handled in getCurrentGameSpeed
             break;
+        case POWERUP_TYPES.AIR_JUMP:
+            if (!gameState.dimbadimba.jumping) {
+                gameState.airJumpsRemaining = getAvailableAirJumps();
+            }
+            break;
     }
     
     // Update the UI indicator
-    updatePowerupIndicator(type, POWERUP_DURATION);
+    updatePowerupIndicator(type, duration);
+}
+
+function activateSpecialCoinEffect(type) {
+    const config = SPECIAL_COIN_CONFIG[type];
+    if (!config) return;
+    
+    // Keep jump-force modifiers mutually exclusive.
+    if (type === POWERUP_TYPES.JUMP_2X || type === POWERUP_TYPES.JUMP_3X) {
+        const conflictingType = type === POWERUP_TYPES.JUMP_3X ? POWERUP_TYPES.JUMP_2X : POWERUP_TYPES.JUMP_3X;
+        if (gameState.activePowerups[conflictingType]) {
+            deactivatePowerup(conflictingType);
+        }
+    }
+    
+    activatePowerup(type, config.duration);
 }
 
 // Deactivate a power-up effect
@@ -3337,6 +3541,9 @@ function deactivatePowerup(type) {
     switch(type) {
         case POWERUP_TYPES.DOUBLE_SCORE:
             gameState.scoreMultiplier = 1;
+            break;
+        case POWERUP_TYPES.AIR_JUMP:
+            gameState.airJumpsRemaining = gameState.dimbadimba.jumping ? 0 : getAvailableAirJumps();
             break;
         // Other power-ups automatically stop when removed from activePowerups
     }
@@ -3409,6 +3616,20 @@ function createPointIndicator(x, y, points) {
     gameState.pointIndicators.push(indicator);
 }
 
+function createSpecialCoinIndicator(x, y, label, color) {
+    gameState.pointIndicators.push({
+        x: x,
+        y: y,
+        points: '',
+        displayText: label,
+        textColor: color || '#ffffff',
+        opacity: 1.0,
+        scale: 0.9,
+        lifetime: 0,
+        maxLifetime: 1300
+    });
+}
+
 // Update point indicators with improved animation
 function updatePointIndicators(deltaTime) {
     for (let i = gameState.pointIndicators.length - 1; i >= 0; i--) {
@@ -3455,6 +3676,8 @@ function drawPointIndicators() {
     
     for (let i = 0; i < gameState.pointIndicators.length; i++) {
         const indicator = gameState.pointIndicators[i];
+        const displayText = indicator.displayText || `+${indicator.points}`;
+        const shadowColor = indicator.textColor || 'rgba(255, 215, 0, 0.9)';
         
         // Save context state
         ctx.save();
@@ -3468,7 +3691,7 @@ function drawPointIndicators() {
         ctx.textBaseline = 'middle';
         
         // Create a background glow for the text
-        ctx.shadowColor = 'rgba(255, 215, 0, 0.9)';
+        ctx.shadowColor = shadowColor;
         ctx.shadowBlur = 20;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
@@ -3476,12 +3699,14 @@ function drawPointIndicators() {
         // Draw a thick black outline for maximum contrast
         ctx.lineWidth = Math.max(3, fontSize / 8);
         ctx.strokeStyle = `rgba(0, 0, 0, ${indicator.opacity})`;
-        ctx.strokeText(`+${indicator.points}`, indicator.x, indicator.y);
+        ctx.strokeText(displayText, indicator.x, indicator.y);
         
         // Draw bright inner text
         // First a white base for brightness
-        ctx.fillStyle = `rgba(255, 255, 255, ${indicator.opacity})`;
-        ctx.fillText(`+${indicator.points}`, indicator.x, indicator.y);
+        ctx.fillStyle = indicator.textColor
+            ? indicator.textColor
+            : `rgba(255, 255, 255, ${indicator.opacity})`;
+        ctx.fillText(displayText, indicator.x, indicator.y);
         
         // Then overlay with gold gradient for shine effect
         const gradient = ctx.createLinearGradient(
@@ -3494,8 +3719,10 @@ function drawPointIndicators() {
         gradient.addColorStop(0.5, `rgba(255, 255, 200, ${indicator.opacity})`); // Bright yellow
         gradient.addColorStop(1, `rgba(255, 140, 0, ${indicator.opacity})`); // Orange
         
-        ctx.fillStyle = gradient;
-        ctx.fillText(`+${indicator.points}`, indicator.x, indicator.y);
+        if (!indicator.textColor) {
+            ctx.fillStyle = gradient;
+            ctx.fillText(displayText, indicator.x, indicator.y);
+        }
         
         // Add sparkle effect (optional sparkles around the text)
         if (indicator.lifetime < indicator.maxLifetime / 2) {
@@ -3978,8 +4205,9 @@ function checkCoinCollisions() {
             // Increase combo for coin collection
             increaseCombo();
             
-            // Calculate points (accounting for multiplier AND combo multiplier)
-            const pointsEarned = Math.floor(50 * gameState.scoreMultiplier * gameState.combo.multiplier);
+            const specialConfig = coin.specialType ? SPECIAL_COIN_CONFIG[coin.specialType] : null;
+            const basePoints = specialConfig ? specialConfig.points : 50;
+            const pointsEarned = Math.floor(basePoints * gameState.scoreMultiplier * gameState.combo.multiplier);
             
             // Add to score
             gameState.score += pointsEarned;
@@ -3988,13 +4216,18 @@ function checkCoinCollisions() {
             // Create visual indicator at coin position
             createPointIndicator(coinX, coinY, pointsEarned);
             
+            if (specialConfig) {
+                activateSpecialCoinEffect(coin.specialType);
+                createSpecialCoinIndicator(coinX, coinY - 30, specialConfig.label, specialConfig.color);
+            } else {
+                // Play coin sound
+                sounds.coin();
+            }
+            
             // Start arm rotation animation
             gameState.dimbadimba.isArmRotating = true;
             gameState.dimbadimba.armRotation = 0;
             gameState.dimbadimba.armRotationCycles = 0;
-            
-            // Play coin sound
-            sounds.coin();
         }
     }
 }
@@ -4222,27 +4455,28 @@ function checkNearMiss(obstacle) {
     // Skip if already checked (using Set for better tracking)
     if (gameState.checkedObstacleIds.has(obstacle.id)) return;
     
-    const nearMissDistance = 15;
     const playerRight = gameState.dimbadimba.x + gameState.dimbadimba.width;
     const obstacleLeft = obstacle.x;
+    const previousObstacleLeft = typeof obstacle.previousX === 'number' ? obstacle.previousX : obstacle.x;
     const playerBottom = gameState.dimbadimba.y + gameState.dimbadimba.height;
     const obstacleTop = obstacle.y;
     
-    // Check if player just passed the obstacle very closely
-    if (playerRight > obstacleLeft && playerRight < obstacleLeft + nearMissDistance) {
+    // Detect near miss when obstacle crosses player's front edge this frame.
+    const crossedPlayerEdge = previousObstacleLeft >= playerRight && obstacleLeft < playerRight;
+    if (crossedPlayerEdge) {
         // Check if player was jumping over (bottom of player near top of obstacle)
-        if (playerBottom < obstacleTop + 20 && playerBottom > obstacleTop - 30) {
+        if (playerBottom < obstacleTop + 20 && playerBottom > obstacleTop - 28) {
             // Near miss! Mark as checked using Set
             gameState.checkedObstacleIds.add(obstacle.id);
             gameState.nearMissCount++;
             
+            // Increase combo first so near-miss rewards the growing streak.
+            increaseCombo();
+            
             // Award points
-            const nearMissPoints = 10 * gameState.scoreMultiplier * gameState.combo.multiplier;
+            const nearMissPoints = NEAR_MISS_BASE_POINTS * gameState.scoreMultiplier * gameState.combo.multiplier;
             gameState.score += Math.floor(nearMissPoints);
             updateScore();
-            
-            // Increase combo
-            increaseCombo();
             
             // Visual feedback
             createNearMissIndicator(
@@ -4258,7 +4492,9 @@ function createNearMissIndicator(x, y) {
     gameState.pointIndicators.push({
         x: x,
         y: y,
-        points: 'CLOSE!',
+        points: '',
+        displayText: 'CLOSE!',
+        textColor: '#ffd166',
         opacity: 1.0,
         scale: 0.8,
         lifetime: 0,
