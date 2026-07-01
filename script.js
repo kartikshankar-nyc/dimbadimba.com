@@ -83,7 +83,6 @@ const SMOKE_SIZE_MIN = 4;        // Reduced from 5
 const SMOKE_SIZE_MAX = 12;       // Reduced from 15
 const SMOKE_LIFETIME = 2400;     // Increased from 2000 ms for longer-lasting smoke
 const PLAYER_TOP_SAFE_MARGIN = 70;
-const BACKGROUND_TILE_OVERLAP = 1;
 const BACKGROUND_SEAM_FIX_WIDTH = 4;
 
 // Unique ID counter for obstacles
@@ -325,8 +324,15 @@ const STANDARD_POWERUP_TYPES = [
     POWERUP_TYPES.DOUBLE_SCORE
 ];
 
-// Initialize the game when the DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
+window.__dimbadimbaReady = false;
+let hasInitializedGame = false;
+
+function initializeGame() {
+    if (hasInitializedGame) {
+        return;
+    }
+
+    hasInitializedGame = true;
     console.log('DOMContentLoaded event fired - script.js initialization starting');
     
     // Initialize the game
@@ -501,8 +507,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure start button is visible
     ensureStartButtonVisibility();
     
+    window.__dimbadimbaReady = true;
     console.log('DOMContentLoaded initialization complete');
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeGame);
+} else {
+    initializeGame();
+}
 
 function initializeAudio() {
     // Only initialize audio if not already initialized
@@ -1170,9 +1183,9 @@ function toggleSound() {
     updateSoundToggleButton();
     
     // Handle background music based on sound toggle
-    if (gameState.soundEnabled && gameState.running && !gameState.paused) {
+    if (gameState.soundEnabled && gameState.running && !gameState.paused && sounds.backgroundMusic) {
         sounds.backgroundMusic.play();
-    } else {
+    } else if (sounds.backgroundMusic) {
         sounds.backgroundMusic.stop();
     }
 }
@@ -1623,15 +1636,33 @@ function createParallaxBackgroundNight() {
 }
 
 function drawMountainRange(ctx, width, height, color, heightFactor, count) {
-    ctx.fillStyle = color;
+    const rgbaMatch = color.match(/^rgba?\(([^)]+)\)$/i);
+    let fillColor = color;
+    let layerAlpha = 1;
+    
+    if (rgbaMatch) {
+        const colorParts = rgbaMatch[1].split(',').map(part => part.trim());
+        if (colorParts.length >= 3) {
+            fillColor = `rgb(${colorParts[0]}, ${colorParts[1]}, ${colorParts[2]})`;
+        }
+        if (colorParts.length === 4) {
+            layerAlpha = parseFloat(colorParts[3]);
+        }
+    }
+    
+    const layerCanvas = document.createElement('canvas');
+    layerCanvas.width = width;
+    layerCanvas.height = height;
+    const layerCtx = layerCanvas.getContext('2d');
+    layerCtx.fillStyle = fillColor;
     
     for (let i = 0; i < count; i++) {
         const mountainWidth = width / count;
         const startX = i * mountainWidth - (mountainWidth/2);
         const peakHeight = height * heightFactor * (0.7 + Math.random() * 0.3);
         
-        ctx.beginPath();
-        ctx.moveTo(startX, height);
+        layerCtx.beginPath();
+        layerCtx.moveTo(startX, height);
         
         // Create jagged mountain shape
         let x = startX;
@@ -1643,14 +1674,19 @@ function drawMountainRange(ctx, width, height, color, heightFactor, count) {
             // Add some randomness to the mountain shape
             y += (Math.random() - 0.5) * 20;
             
-            ctx.lineTo(x, y);
+            layerCtx.lineTo(x, y);
             x += mountainWidth / 10;
         }
         
-        ctx.lineTo(startX + mountainWidth * 2, height);
-        ctx.closePath();
-        ctx.fill();
+        layerCtx.lineTo(startX + mountainWidth * 2, height);
+        layerCtx.closePath();
+        layerCtx.fill();
     }
+    
+    ctx.save();
+    ctx.globalAlpha = layerAlpha;
+    ctx.drawImage(layerCanvas, 0, 0);
+    ctx.restore();
 }
 
 function drawCloud(ctx, x, y, width, height) {
@@ -2296,7 +2332,7 @@ function startGame() {
     }
     
     // Play background music if enabled and audio is available
-    if (gameState.soundEnabled && sounds.audioCtx) {
+    if (gameState.soundEnabled && sounds.audioCtx && sounds.backgroundMusic) {
         try {
             sounds.backgroundMusic.play();
         } catch (e) {
@@ -2343,7 +2379,7 @@ function restartGame() {
     gameOverScreen.classList.add('hidden');
     
     // Play background music if enabled
-    if (gameState.soundEnabled) {
+    if (gameState.soundEnabled && sounds.backgroundMusic) {
         sounds.backgroundMusic.play();
     }
     
@@ -2405,7 +2441,9 @@ function resetGame() {
     }
     
     // Stop background music when resetting
-    sounds.backgroundMusic.stop();
+    if (sounds.backgroundMusic) {
+        sounds.backgroundMusic.stop();
+    }
     
     updateScore();
     
@@ -2432,9 +2470,9 @@ function togglePause() {
     gameState.paused = !gameState.paused;
     
     // Handle music when pausing/unpausing
-    if (gameState.paused) {
+    if (gameState.paused && sounds.backgroundMusic) {
         sounds.backgroundMusic.stop();
-    } else if (gameState.soundEnabled) {
+    } else if (gameState.soundEnabled && sounds.backgroundMusic) {
         sounds.backgroundMusic.play();
         
         // Reset lastTime when unpausing to prevent huge deltaTime on first frame
@@ -2810,7 +2848,7 @@ function checkCollisions() {
             // If shield is active, use it instead of losing a life
             if (gameState.activePowerups[POWERUP_TYPES.SHIELD]) {
                 // Play a shield hit sound
-                sounds.powerup();
+                playSound('powerup');
                 
                 // Remove obstacle
                 gameState.obstacles.splice(i, 1);
@@ -2899,64 +2937,63 @@ function drawGame() {
 
     }
     
-    // Draw player (dimbadimba)
-    ctx.save();
-    
-    // Add flashing effect when invincible
-    if (gameState.isInvincible) {
-        // Make character flash by changing opacity
-        ctx.globalAlpha = 0.5 + Math.sin(gameState.invincibilityTimer / 100) * 0.5;
-    }
-    
-    // Draw shield effect if active
-    if (gameState.activePowerups[POWERUP_TYPES.SHIELD]) {
-        ctx.beginPath();
-        ctx.arc(
-            gameState.dimbadimba.x + gameState.dimbadimba.width / 2,
-            gameState.dimbadimba.y + gameState.dimbadimba.height / 2,
-            Math.max(gameState.dimbadimba.width, gameState.dimbadimba.height) * 0.6,
-            0, Math.PI * 2
-        );
-        ctx.strokeStyle = 'rgba(52, 152, 219, 0.7)';
-        ctx.lineWidth = 4;
-        ctx.stroke();
+    if (sprites.player) {
+        // Draw player (dimbadimba)
+        ctx.save();
         
-        // Add glow effect
-        ctx.shadowColor = '#3498db';
-        ctx.shadowBlur = 15;
-    }
-    
-    // Draw player with rotating arms or normal sprite
-    if (gameState.dimbadimba.isArmRotating) {
-        // Create and draw a sprite with rotated arms
-        const rotatedArmSprite = createRotatingArmSprite(gameState.dimbadimba.armRotation);
-        
-        // Check if we're using the custom image (which is larger than the player hitbox)
-        if (sprites.playerOriginal) {
-            // Calculate offset to center the larger sprite on the player's hitbox
-            const offsetX = (rotatedArmSprite.width - gameState.dimbadimba.width) / 2;
-            const offsetY = (rotatedArmSprite.height - gameState.dimbadimba.height) / 2;
-            
-            ctx.drawImage(
-                rotatedArmSprite,
-                gameState.dimbadimba.x - offsetX,
-                gameState.dimbadimba.y - offsetY,
-                rotatedArmSprite.width,
-                rotatedArmSprite.height
-            );
-        } else {
-            // Regular sized pixel art sprite
-            ctx.drawImage(
-                rotatedArmSprite,
-                gameState.dimbadimba.x,
-                gameState.dimbadimba.y,
-                gameState.dimbadimba.width,
-                gameState.dimbadimba.height
-            );
+        // Add flashing effect when invincible
+        if (gameState.isInvincible) {
+            // Make character flash by changing opacity
+            ctx.globalAlpha = 0.5 + Math.sin(gameState.invincibilityTimer / 100) * 0.5;
         }
-    } else {
-        // Draw normal player sprite
-        if (sprites.playerOriginal) {
+        
+        // Draw shield effect if active
+        if (gameState.activePowerups[POWERUP_TYPES.SHIELD]) {
+            ctx.beginPath();
+            ctx.arc(
+                gameState.dimbadimba.x + gameState.dimbadimba.width / 2,
+                gameState.dimbadimba.y + gameState.dimbadimba.height / 2,
+                Math.max(gameState.dimbadimba.width, gameState.dimbadimba.height) * 0.6,
+                0, Math.PI * 2
+            );
+            ctx.strokeStyle = 'rgba(52, 152, 219, 0.7)';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            // Add glow effect
+            ctx.shadowColor = '#3498db';
+            ctx.shadowBlur = 15;
+        }
+        
+        // Draw player with rotating arms or normal sprite
+        if (gameState.dimbadimba.isArmRotating) {
+            // Create and draw a sprite with rotated arms
+            const rotatedArmSprite = createRotatingArmSprite(gameState.dimbadimba.armRotation);
+            
+            // Check if we're using the custom image (which is larger than the player hitbox)
+            if (sprites.playerOriginal) {
+                // Calculate offset to center the larger sprite on the player's hitbox
+                const offsetX = (rotatedArmSprite.width - gameState.dimbadimba.width) / 2;
+                const offsetY = (rotatedArmSprite.height - gameState.dimbadimba.height) / 2;
+                
+                ctx.drawImage(
+                    rotatedArmSprite,
+                    gameState.dimbadimba.x - offsetX,
+                    gameState.dimbadimba.y - offsetY,
+                    rotatedArmSprite.width,
+                    rotatedArmSprite.height
+                );
+            } else {
+                // Regular sized pixel art sprite
+                ctx.drawImage(
+                    rotatedArmSprite,
+                    gameState.dimbadimba.x,
+                    gameState.dimbadimba.y,
+                    gameState.dimbadimba.width,
+                    gameState.dimbadimba.height
+                );
+            }
+        } else if (sprites.playerOriginal) {
             // Calculate offset to center the larger sprite on the player's hitbox
             // Increased offset to account for larger character size
             const offsetX = (sprites.player.width - gameState.dimbadimba.width) / 2;
@@ -2980,8 +3017,8 @@ function drawGame() {
                 gameState.dimbadimba.height
             );
         }
+        ctx.restore();
     }
-    ctx.restore();
     
     // Draw smoke particles (draw after player so smoke appears above)
     gameState.smokeParticles.forEach(particle => {
@@ -3614,7 +3651,7 @@ function getPowerupName(type) {
 // Activate a power-up effect
 function activatePowerup(type, duration = POWERUP_DURATION) {
     // Play power-up sound
-    sounds.powerup();
+    playSound('powerup');
     
     // Apply power-up effect
     gameState.activePowerups[type] = {
@@ -4361,7 +4398,7 @@ function checkCoinCollisions() {
                 createSpecialCoinIndicator(coinX, coinY - 30, specialConfig.label, specialConfig.color);
             } else {
                 // Play coin sound
-                sounds.coin();
+                playSound('coin');
             }
             
             // Start arm rotation animation
@@ -4411,7 +4448,7 @@ function drawBackground() {
         
         while (drawX < GAME_WIDTH) {
             ctx.drawImage(layer, drawX, 0);
-            drawX += layer.width - BACKGROUND_TILE_OVERLAP;
+            drawX += layer.width;
         }
     }
 }
@@ -4750,7 +4787,9 @@ function gameOver() {
     gameState.running = false;
     
     // Stop background music
-    sounds.backgroundMusic.stop();
+    if (sounds.backgroundMusic) {
+        sounds.backgroundMusic.stop();
+    }
     
     // Play game over sound
     playSound('gameOver');

@@ -14,6 +14,7 @@ module.exports = defineConfig({
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:3000',
+    serviceWorkers: 'block',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'on-first-retry'

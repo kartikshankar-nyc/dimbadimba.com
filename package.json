@@ -4,6 +4,7 @@
   "description": "A browser-based pixel runner game",
   "main": "index.html",
   "scripts": {
+    "cache:bust": "node update-cache-version.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

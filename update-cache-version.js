@@ -19,10 +19,12 @@ function generateAssetList() {
     try {
         // Patterns to include
         const patterns = [
-            '**/*.html', 
-            '**/*.css', 
-            '**/*.js', 
-            '**/*.json',
+            'index.html',
+            'style.css',
+            'character-display.css',
+            'script.js',
+            'service-worker.js',
+            'manifest.json',
             'images/**/*.png', 
             'images/**/*.jpg', 
             'images/**/*.svg',
@@ -37,6 +39,10 @@ function generateAssetList() {
             'node_modules/**',
             'build/**',
             '.git/**',
+            'tests/**',
+            'test/**',
+            'playwright/**',
+            'playwright-report/**',
             '*.dev.html',
             'debug-*.js'
         ];

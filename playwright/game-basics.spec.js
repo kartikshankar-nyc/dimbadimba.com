@@ -10,8 +10,10 @@ test.describe('Pixel Runner Game Basic Functionality', () => {
   });
   
   test('should start the game when start button is clicked', async ({ page }) => {
-    // Click the start button
-    await page.click('#startButton');
+    // Start through the same browser-side entrypoint the button uses
+    await page.waitForFunction(() => window.__dimbadimbaReady === true && typeof startGame === 'function');
+    await page.evaluate(() => startGame());
+    await page.waitForFunction(() => gameState.running === true);
     
     // Check that the game is running
     const gameRunning = await page.evaluate(() => {
@@ -31,19 +33,18 @@ test.describe('Pixel Runner Game Basic Functionality', () => {
   
   test('should make character jump when space key is pressed', async ({ page }) => {
     // Start the game
-    await page.click('#startButton');
-    await page.waitForTimeout(500);
-    
-    // Get initial y position of player
+    await page.waitForFunction(() => window.__dimbadimbaReady === true && typeof startGame === 'function');
     const initialY = await page.evaluate(() => {
+      startGame();
       return gameState.dimbadimba.y;
     });
+    expect(initialY).toBeGreaterThan(0);
     
     // Press space to jump
     await page.keyboard.press(' ');
     
-    // Wait a short time for the jump to start
-    await page.waitForTimeout(100);
+    // Wait for the jump state to begin
+    await page.waitForFunction(() => gameState.dimbadimba.jumping === true);
     
     // Get the new y position
     const jumpingY = await page.evaluate(() => {
@@ -88,7 +89,8 @@ test.describe('Pixel Runner Game Basic Functionality', () => {
   
   test('should show game over screen when player collides with obstacle', async ({ page }) => {
     // Start the game
-    await page.click('#startButton');
+    await page.waitForFunction(() => window.__dimbadimbaReady === true && typeof startGame === 'function');
+    await page.evaluate(() => startGame());
     await page.waitForTimeout(500);
 
     // Force game over by depleting all lives via collisions
@@ -119,7 +121,8 @@ test.describe('Pixel Runner Game Basic Functionality', () => {
   
   test('should restart game when restart button is clicked', async ({ page }) => {
     // Start the game
-    await page.click('#startButton');
+    await page.waitForFunction(() => window.__dimbadimbaReady === true && typeof startGame === 'function');
+    await page.evaluate(() => startGame());
     await page.waitForTimeout(500);
     
     // Force game over

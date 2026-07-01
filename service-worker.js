@@ -4,7 +4,7 @@
  */
 
 const CACHE_VERSION = 2;
-const DEPLOY_TIMESTAMP = '12345678';
+const DEPLOY_TIMESTAMP = '1782945833665';
 const CACHE_NAME = `dimbadimba-cache-v${CACHE_VERSION}-${DEPLOY_TIMESTAMP}`;
 
 // Debug logging - shows in the service worker console in the browser
@@ -17,10 +17,23 @@ function swLog(message, ...args) {
 
 // Assets to cache initially (these will be supplemented by the asset manifest)
 const ASSETS = [
-  './',
+  './character-display.css',
+  './icons/icon-128x128.png',
+  './icons/icon-144x144.png',
+  './icons/icon-152x152.png',
+  './icons/icon-16x16.png',
+  './icons/icon-192x192.png',
+  './icons/icon-32x32.png',
+  './icons/icon-384x384.png',
+  './icons/icon-512x512.png',
+  './icons/icon-72x72.png',
+  './icons/icon-96x96.png',
+  './images/dimbadimba.png',
   './index.html',
   './manifest.json',
-  './asset-manifest.json'
+  './script.js',
+  './service-worker.js',
+  './style.css'
 ];
 
 // Install event - cache all needed assets
@@ -110,16 +123,24 @@ self.addEventListener('fetch', event => {
   
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) return;
+
+  const requestUrl = new URL(event.request.url);
+  const pathname = requestUrl.pathname;
+  const isHtmlRequest = event.request.mode === 'navigate' || pathname.endsWith('.html') || pathname.endsWith('/');
+  const isServiceWorkerRequest = pathname.endsWith('service-worker.js');
+  const isManifestRequest = pathname.endsWith('asset-manifest.json');
+  const isHashedAsset = /\.[0-9a-f]{8}\.(js|css|png|jpg|jpeg|gif|svg|mp3|wav|json)$/i.test(pathname);
+  const isRuntimeCodeAsset = /\.(js|css)$/i.test(pathname) && !isHashedAsset;
   
   // Handle asset requests - content-hashed files can be cached forever
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       if (cachedResponse) {
         // For non-HTML requests, return cached version immediately
-        if (!event.request.url.endsWith('.html') && 
-            !event.request.url.endsWith('/') &&
-            !event.request.url.endsWith('service-worker.js') &&
-            !event.request.url.endsWith('asset-manifest.json')) {
+        if (!isHtmlRequest &&
+            !isServiceWorkerRequest &&
+            !isManifestRequest &&
+            !isRuntimeCodeAsset) {
           return cachedResponse;
         }
       }
@@ -136,16 +157,14 @@ self.addEventListener('fetch', event => {
           const responseToCache = response.clone();
           
           // Check if request URL includes a content hash (filename.hash.ext pattern)
-          const isHashedAsset = /\.[0-9a-f]{8}\.(js|css|png|jpg|jpeg|gif|svg|mp3|wav|json)$/i.test(event.request.url);
-          
           // Cache the fetched response 
-          // Note: We always update the cache for HTML and service worker
+          // Note: We always update the cache for HTML, service worker, and non-hashed runtime code
           const shouldCache = isHashedAsset || 
-                              event.request.url.endsWith('.html') || 
-                              event.request.url.endsWith('/') ||
-                              event.request.url.endsWith('service-worker.js') ||
-                              event.request.url.endsWith('asset-manifest.json');
-                              
+                              isHtmlRequest ||
+                              isServiceWorkerRequest ||
+                              isManifestRequest ||
+                              isRuntimeCodeAsset;
+                               
           if (shouldCache) {
             caches.open(CACHE_NAME)
               .then(cache => {

@@ -82,6 +82,42 @@ test.describe('Combo and special coin mechanics', () => {
       const baseJumpForce = gameState.jumpForce;
       const baseGravity = gameState.gravity;
 
+      function resetPlayerForJump() {
+        player.y = GAME_HEIGHT - GROUND_HEIGHT - PLAYER_HEIGHT;
+        player.velocityY = 0;
+        player.jumping = false;
+        gameState.airJumpsRemaining = 0;
+      }
+
+      function simulateJumpWithPower(type) {
+        gameState.activePowerups = {};
+        resetPlayerForJump();
+
+        if (type) {
+          activateSpecialCoinEffect(type);
+        }
+
+        jump();
+        const initialVelocity = player.velocityY;
+        const initialProjection = getLandingProjection();
+        let minTop = getPlayerVisualBounds().top;
+
+        for (let frame = 0; frame < 180; frame++) {
+          updatePlayer(16);
+          minTop = Math.min(minTop, getPlayerVisualBounds().top);
+          if (!player.jumping && frame > 0) {
+            break;
+          }
+        }
+
+        return {
+          initialVelocity,
+          landingDistance: initialProjection ? initialProjection.groundDistance : 0,
+          minTop,
+          landed: !player.jumping
+        };
+      }
+
       function collectSpecialCoin(type) {
         gameState.coins.push({
           x: player.x + 2,
@@ -96,18 +132,16 @@ test.describe('Combo and special coin mechanics', () => {
         checkCoinCollisions();
       }
 
+      const baseJump = simulateJumpWithPower(null);
+
       collectSpecialCoin(POWERUP_TYPES.JUMP_2X);
-      player.jumping = false;
-      jump();
-      const jump2Velocity = player.velocityY;
       const jump2Active = !!gameState.activePowerups[POWERUP_TYPES.JUMP_2X];
+      const jump2 = simulateJumpWithPower(POWERUP_TYPES.JUMP_2X);
 
       collectSpecialCoin(POWERUP_TYPES.JUMP_3X);
-      player.jumping = false;
-      jump();
-      const jump3Velocity = player.velocityY;
       const jump3Active = !!gameState.activePowerups[POWERUP_TYPES.JUMP_3X];
       const jump2StillActive = !!gameState.activePowerups[POWERUP_TYPES.JUMP_2X];
+      const jump3 = simulateJumpWithPower(POWERUP_TYPES.JUMP_3X);
 
       collectSpecialCoin(POWERUP_TYPES.HANGTIME);
       const hangtimeActive = !!gameState.activePowerups[POWERUP_TYPES.HANGTIME];
@@ -132,10 +166,11 @@ test.describe('Combo and special coin mechanics', () => {
       const jump3Expired = !gameState.activePowerups[POWERUP_TYPES.JUMP_3X];
 
       return {
+        baseJump,
         jump2Active,
-        jump2Velocity,
+        jump2,
         jump3Active,
-        jump3Velocity,
+        jump3,
         jump2StillActive,
         hangtimeActive,
         baseGravity,
@@ -145,15 +180,24 @@ test.describe('Combo and special coin mechanics', () => {
         airJumpsAfterSecondJump,
         secondJumpVelocity,
         jump3Expired,
-        baseJumpForce
+        baseJumpForce,
+        playerTopSafeMargin: PLAYER_TOP_SAFE_MARGIN
       };
     });
 
     expect(result.jump2Active).toBeTruthy();
-    expect(result.jump2Velocity).toBeCloseTo(result.baseJumpForce * 2, 4);
+    expect(result.baseJump.landed).toBeTruthy();
+    expect(result.jump2.landed).toBeTruthy();
+    expect(result.jump3.landed).toBeTruthy();
+    expect(result.jump2.initialVelocity).toBeLessThan(result.baseJump.initialVelocity);
     expect(result.jump3Active).toBeTruthy();
     expect(result.jump2StillActive).toBeFalsy();
-    expect(result.jump3Velocity).toBeCloseTo(result.baseJumpForce * 3, 4);
+    expect(result.jump3.initialVelocity).toBeLessThan(result.baseJump.initialVelocity);
+    expect(result.jump2.landingDistance).toBeGreaterThan(result.baseJump.landingDistance);
+    expect(result.jump3.landingDistance).toBeGreaterThan(result.jump2.landingDistance);
+    expect(result.baseJump.minTop).toBeGreaterThanOrEqual(result.playerTopSafeMargin);
+    expect(result.jump2.minTop).toBeGreaterThanOrEqual(result.playerTopSafeMargin);
+    expect(result.jump3.minTop).toBeGreaterThanOrEqual(result.playerTopSafeMargin);
     expect(result.hangtimeActive).toBeTruthy();
     expect(result.effectiveGravity).toBeLessThan(result.baseGravity);
     expect(result.airJumpActive).toBeTruthy();
