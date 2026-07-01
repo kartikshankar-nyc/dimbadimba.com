@@ -3370,59 +3370,6 @@ function handleMobileSpecificBehaviors() {
         }, false);
     }
     
-    // Add to home screen prompt for mobile
-    let deferredPrompt;
-    
-    window.addEventListener('beforeinstallprompt', (e) => {
-        // Prevent Chrome 67 and earlier from automatically showing the prompt
-        e.preventDefault();
-        // Stash the event so it can be triggered later
-        deferredPrompt = e;
-        
-        // Show "Add to Home Screen" info
-        if (!localStorage.getItem('pwaPromptDismissed')) {
-            const pwaPrompt = document.createElement('div');
-            pwaPrompt.className = 'pwa-prompt';
-            pwaPrompt.innerHTML = `
-                <div class="pwa-content">
-                    <div class="pwa-message">
-                        <p>Add Dimbadimba to your home screen for the best experience!</p>
-                    </div>
-                    <div class="pwa-buttons">
-                        <button id="pwa-install-btn">Install</button>
-                        <button id="pwa-dismiss-btn">Not Now</button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(pwaPrompt);
-            
-            document.getElementById('pwa-install-btn').addEventListener('click', () => {
-                // Hide the prompt
-                pwaPrompt.style.display = 'none';
-                // Show the install prompt
-                deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('User accepted the install prompt');
-                    } else {
-                        console.log('User dismissed the install prompt');
-                    }
-                    // Clear the deferred prompt
-                    deferredPrompt = null;
-                });
-            });
-            
-            document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
-                // Hide the prompt
-                pwaPrompt.style.display = 'none';
-                // Remember that the user dismissed the prompt
-                localStorage.setItem('pwaPromptDismissed', 'true');
-            });
-        }
-    });
-    
     // Handle specific behaviors for desktop browsers
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
@@ -4094,6 +4041,10 @@ function initPwaInstallation() {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
                          window.navigator.standalone === true;
     const wasInstalled = localStorage.getItem('appInstalled') === 'true';
+
+    if (installButton) {
+        installButton.classList.add('hidden');
+    }
     
     // Hide install button if already installed or previously installed
     if (isStandalone || wasInstalled) {
@@ -4110,8 +4061,8 @@ function initPwaInstallation() {
     window.addEventListener('beforeinstallprompt', (e) => {
         console.log('beforeinstallprompt event fired!', e);
         
-        // For browsers' native install prompt - DO NOT PREVENT DEFAULT
-        // e.preventDefault(); - Removing this to allow the native prompt to show
+        // Use a controlled install flow so the install CTA is shown only where we place it
+        e.preventDefault();
         
         // Store the event for later use with our custom button
         deferredPrompt = e;

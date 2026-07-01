@@ -73,9 +73,6 @@
                 </div>
                 <div class="header-buttons">
                     <button id="soundToggle" aria-label="Toggle Sound">🔊</button>
-                    <button id="installButton" class="install-button hidden" data-debug="install-btn">
-                        <span class="install-icon">📱</span> Install
-                    </button>
                 </div>
             </div>
             <div class="header-row second-row">
@@ -132,6 +129,9 @@
                 </div>
                 
                 <button id="startButton">Start Game</button>
+                <button id="installButton" class="install-button install-button-overlay hidden" data-debug="install-btn" aria-label="Install app">
+                    <span class="install-icon">📱</span> Install App
+                </button>
                 
                 <!-- Fallback install instructions for iOS -->
                 <div id="iosInstallInstructions" class="install-instructions hidden">
