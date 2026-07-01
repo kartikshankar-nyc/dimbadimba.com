@@ -2486,8 +2486,39 @@ function getJumpTravelMultiplier() {
     return 1;
 }
 
+function getPlayerRenderMetrics() {
+    const renderWidth = sprites.playerOriginal
+        ? (gameState.dimbadimba.canvasWidth || sprites.player?.width || gameState.dimbadimba.width)
+        : gameState.dimbadimba.width;
+    const renderHeight = sprites.playerOriginal
+        ? (gameState.dimbadimba.canvasHeight || sprites.player?.height || gameState.dimbadimba.height)
+        : gameState.dimbadimba.height;
+    
+    return {
+        width: renderWidth,
+        height: renderHeight,
+        offsetX: Math.max(0, (renderWidth - gameState.dimbadimba.width) / 2),
+        offsetY: Math.max(0, (renderHeight - gameState.dimbadimba.height) / 2)
+    };
+}
+
+function getPlayerVisualBounds(atX = gameState.dimbadimba.x, atY = gameState.dimbadimba.y) {
+    const metrics = getPlayerRenderMetrics();
+    
+    return {
+        left: atX - metrics.offsetX,
+        top: atY - metrics.offsetY,
+        right: atX - metrics.offsetX + metrics.width,
+        bottom: atY - metrics.offsetY + metrics.height,
+        centerX: atX + (gameState.dimbadimba.width / 2),
+        centerY: atY + (gameState.dimbadimba.height / 2),
+        ...metrics
+    };
+}
+
 function getVisibleJumpVelocity(desiredJumpVelocity) {
-    const availableRise = Math.max(0, gameState.dimbadimba.y - PLAYER_TOP_SAFE_MARGIN);
+    const currentVisualBounds = getPlayerVisualBounds();
+    const availableRise = Math.max(0, currentVisualBounds.top - PLAYER_TOP_SAFE_MARGIN);
     const effectiveGravity = Math.max(getEffectiveGravity(), 0.01);
     const maxVisibleVelocity = -Math.max(4, Math.sqrt(2 * effectiveGravity * availableRise));
     
@@ -2815,7 +2846,6 @@ function drawGame() {
     
     // Draw ground
     drawGround();
-    drawLandingGuide();
     
     // Draw obstacles
     gameState.obstacles.forEach(obstacle => {
@@ -3020,6 +3050,8 @@ function drawGame() {
         ctx.strokeText(labelText, labelX, labelY);
         ctx.fillText(labelText, labelX, labelY);
     }
+
+    drawLandingGuide();
     
     // Draw point indicators
     drawPointIndicators();
@@ -3074,8 +3106,9 @@ function drawLandingGuide() {
     const landingProjection = getLandingProjection();
     if (!landingProjection) return;
     
-    const playerCenterX = gameState.dimbadimba.x + (gameState.dimbadimba.width / 2);
-    const playerTopY = gameState.dimbadimba.y;
+    const playerBounds = getPlayerVisualBounds();
+    const playerCenterX = playerBounds.centerX;
+    const playerTopY = playerBounds.top;
     const groundLineY = GAME_HEIGHT - GROUND_HEIGHT;
     
     const projectedLandingX = playerCenterX + landingProjection.groundDistance;
@@ -3093,6 +3126,19 @@ function drawLandingGuide() {
     ctx.stroke();
     ctx.setLineDash([]);
     
+    ctx.fillStyle = 'rgba(255, 214, 72, 0.2)';
+    ctx.beginPath();
+    ctx.ellipse(
+        clampedLandingX,
+        groundLineY - 7,
+        Math.max(14, gameState.dimbadimba.width * 0.5),
+        8,
+        0,
+        0,
+        Math.PI * 2
+    );
+    ctx.fill();
+
     ctx.fillStyle = 'rgba(255, 214, 72, 0.9)';
     ctx.beginPath();
     ctx.arc(clampedLandingX, groundLineY - 7, 8, 0, Math.PI * 2);
