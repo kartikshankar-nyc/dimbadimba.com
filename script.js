@@ -41,7 +41,9 @@ const SPECIAL_COIN_CONFIG = {
         duration: 7000,
         points: 90,
         weight: 4,
-        jumpMultiplier: 2
+        jumpMultiplier: 2,
+        airtimeGravityMultiplier: 0.9,
+        travelMultiplier: 1.12
     },
     [SPECIAL_COIN_TYPES.JUMP_3X]: {
         label: 'JUMP x3',
@@ -50,7 +52,9 @@ const SPECIAL_COIN_CONFIG = {
         duration: 4500,
         points: 130,
         weight: 2,
-        jumpMultiplier: 3
+        jumpMultiplier: 3,
+        airtimeGravityMultiplier: 0.82,
+        travelMultiplier: 1.22
     },
     [SPECIAL_COIN_TYPES.HANGTIME]: {
         label: 'HANGTIME',
@@ -78,6 +82,8 @@ const SMOKE_SPAWN_RATE = 80;     // Reduced from 100 ms for more frequent puffs
 const SMOKE_SIZE_MIN = 4;        // Reduced from 5 
 const SMOKE_SIZE_MAX = 12;       // Reduced from 15
 const SMOKE_LIFETIME = 2400;     // Increased from 2000 ms for longer-lasting smoke
+const PLAYER_TOP_SAFE_MARGIN = 70;
+const BACKGROUND_TILE_OVERLAP = 1;
 
 // Unique ID counter for obstacles
 let obstacleIdCounter = 0;
@@ -2429,11 +2435,73 @@ function getEffectiveJumpForce() {
 }
 
 function getEffectiveGravity() {
+    let effectiveGravity = gameState.gravity;
+    
     if (gameState.activePowerups[POWERUP_TYPES.HANGTIME]) {
-        return gameState.gravity * SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.HANGTIME].gravityMultiplier;
+        effectiveGravity *= SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.HANGTIME].gravityMultiplier;
     }
     
-    return gameState.gravity;
+    if (gameState.activePowerups[POWERUP_TYPES.JUMP_3X]) {
+        effectiveGravity *= SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.JUMP_3X].airtimeGravityMultiplier;
+    } else if (gameState.activePowerups[POWERUP_TYPES.JUMP_2X]) {
+        effectiveGravity *= SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.JUMP_2X].airtimeGravityMultiplier;
+    }
+    
+    return effectiveGravity;
+}
+
+function getJumpTravelMultiplier() {
+    if (!gameState.dimbadimba.jumping) {
+        return 1;
+    }
+    
+    if (gameState.activePowerups[POWERUP_TYPES.JUMP_3X]) {
+        return SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.JUMP_3X].travelMultiplier;
+    }
+    
+    if (gameState.activePowerups[POWERUP_TYPES.JUMP_2X]) {
+        return SPECIAL_COIN_CONFIG[SPECIAL_COIN_TYPES.JUMP_2X].travelMultiplier;
+    }
+    
+    return 1;
+}
+
+function getVisibleJumpVelocity(desiredJumpVelocity) {
+    const availableRise = Math.max(0, gameState.dimbadimba.y - PLAYER_TOP_SAFE_MARGIN);
+    const effectiveGravity = Math.max(getEffectiveGravity(), 0.01);
+    const maxVisibleVelocity = -Math.max(4, Math.sqrt(2 * effectiveGravity * availableRise));
+    
+    return Math.max(desiredJumpVelocity, maxVisibleVelocity);
+}
+
+function getLandingProjection() {
+    if (!gameState.dimbadimba.jumping) {
+        return null;
+    }
+    
+    const currentY = gameState.dimbadimba.y;
+    const currentVelocityY = gameState.dimbadimba.velocityY;
+    const gravity = getEffectiveGravity();
+    const groundY = GAME_HEIGHT - GROUND_HEIGHT - PLAYER_HEIGHT;
+    
+    if (gravity <= 0) {
+        return null;
+    }
+    
+    const a = 0.5 * gravity;
+    const b = currentVelocityY;
+    const c = currentY - groundY;
+    const discriminant = (b * b) - (4 * a * c);
+    
+    if (discriminant < 0) {
+        return null;
+    }
+    
+    const landingFrames = Math.max(0, (-b + Math.sqrt(discriminant)) / (2 * a));
+    return {
+        framesToLanding: landingFrames,
+        groundDistance: landingFrames * getCurrentGameSpeed()
+    };
 }
 
 function getAvailableAirJumps() {
@@ -2446,7 +2514,8 @@ function jump() {
     const canUseAirJump = gameState.dimbadimba.jumping && gameState.airJumpsRemaining > 0;
     
     if (!gameState.dimbadimba.jumping || canUseAirJump) {
-        gameState.dimbadimba.velocityY = getEffectiveJumpForce();
+        const desiredJumpVelocity = getEffectiveJumpForce();
+        gameState.dimbadimba.velocityY = getVisibleJumpVelocity(desiredJumpVelocity);
         gameState.dimbadimba.jumping = true;
         
         if (canUseAirJump) {
@@ -2586,7 +2655,8 @@ function spawnObstacle() {
 
 // Function to get current game speed (considering power-ups)
 function getCurrentGameSpeed() {
-    return gameState.speed * (gameState.activePowerups[POWERUP_TYPES.SPEED] ? gameState.speedBoostMultiplier : 1);
+    const speedBoostMultiplier = gameState.activePowerups[POWERUP_TYPES.SPEED] ? gameState.speedBoostMultiplier : 1;
+    return gameState.speed * speedBoostMultiplier * getJumpTravelMultiplier();
 }
 
 function updateCoins(deltaTime) {
@@ -2725,6 +2795,7 @@ function drawGame() {
     
     // Draw ground
     drawGround();
+    drawLandingGuide();
     
     // Draw obstacles
     gameState.obstacles.forEach(obstacle => {
@@ -2775,6 +2846,7 @@ function drawGame() {
             );
             ctx.restore();
         }
+
     }
     
     // Draw player (dimbadimba)
@@ -2975,6 +3047,57 @@ function drawSpecialCoinAura(coin) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText(config.shortLabel, centerX, coin.y - 4);
+    ctx.restore();
+}
+
+function drawLandingGuide() {
+    const landingProjection = getLandingProjection();
+    if (!landingProjection) return;
+    
+    const playerCenterX = gameState.dimbadimba.x + (gameState.dimbadimba.width / 2);
+    const playerTopY = gameState.dimbadimba.y;
+    const groundLineY = GAME_HEIGHT - GROUND_HEIGHT;
+    
+    const projectedLandingX = playerCenterX + landingProjection.groundDistance;
+    const clampedLandingX = Math.max(24, Math.min(GAME_WIDTH - 24, projectedLandingX));
+    const etaSeconds = landingProjection.framesToLanding / 60;
+    
+    ctx.save();
+    
+    ctx.setLineDash([6, 6]);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(playerCenterX, playerTopY);
+    ctx.lineTo(clampedLandingX, groundLineY - 14);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    ctx.fillStyle = 'rgba(255, 214, 72, 0.9)';
+    ctx.beginPath();
+    ctx.arc(clampedLandingX, groundLineY - 7, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    if (projectedLandingX > GAME_WIDTH - 24) {
+        ctx.fillStyle = 'rgba(255, 214, 72, 0.95)';
+        ctx.beginPath();
+        ctx.moveTo(GAME_WIDTH - 14, groundLineY - 20);
+        ctx.lineTo(GAME_WIDTH - 4, groundLineY - 14);
+        ctx.lineTo(GAME_WIDTH - 14, groundLineY - 8);
+        ctx.closePath();
+        ctx.fill();
+    }
+    
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillStyle = '#fff5b0';
+    const guideText = `LAND ${etaSeconds.toFixed(1)}s • +${Math.round(landingProjection.groundDistance)}px`;
+    ctx.strokeText(guideText, clampedLandingX, groundLineY - 18);
+    ctx.fillText(guideText, clampedLandingX, groundLineY - 18);
+    
     ctx.restore();
 }
 
@@ -4262,15 +4385,16 @@ function drawBackground() {
     
     // Draw each layer with its offset
     for (let i = 0; i < layers.length; i++) {
-        // Calculate the x position with parallax effect (different speeds)
-        const x = gameState.backgroundPos[i] % layers[i].width;
+        const layer = layers[i];
+        if (!layer || layer.width <= 0) continue;
         
-        // Draw first copy of the layer
-        ctx.drawImage(layers[i], x, 0);
+        // Normalize and pixel-snap positions to prevent seam artifacts between tiled copies
+        const normalizedOffset = ((gameState.backgroundPos[i] % layer.width) + layer.width) % layer.width;
+        let drawX = -Math.round(normalizedOffset) - layer.width;
         
-        // If we need to draw a second copy to fill the screen
-        if (x < GAME_WIDTH - layers[i].width) {
-            ctx.drawImage(layers[i], x + layers[i].width, 0);
+        while (drawX < GAME_WIDTH) {
+            ctx.drawImage(layer, drawX, 0);
+            drawX += layer.width - BACKGROUND_TILE_OVERLAP;
         }
     }
 }
