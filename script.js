@@ -1512,9 +1512,8 @@ function createParallaxBackgroundDay() {
         const cloudWidth = Math.random() * 120 + 80;
         const cloudHeight = cloudWidth * 0.6;
         
-        drawCloud(cloudsCtx, cloudX, cloudY, cloudWidth, cloudHeight);
+        drawWrappedCloud(cloudsCtx, cloudX, cloudY, cloudWidth, cloudHeight, cloudsCanvas.width);
     }
-    makeLayerTileable(cloudsCanvas);
     
     layers.push(cloudsCanvas);
     
@@ -1618,17 +1617,8 @@ function createParallaxBackgroundNight() {
         const width = Math.random() * 300 + 100;
         const height = Math.random() * 60 + 20;
         
-        const fogGradient = fogCtx.createRadialGradient(
-            x + width/2, y + height/2, 0,
-            x + width/2, y + height/2, width/2
-        );
-        fogGradient.addColorStop(0, 'rgba(200, 200, 255, 0.2)');
-        fogGradient.addColorStop(1, 'rgba(200, 200, 255, 0)');
-        
-        fogCtx.fillStyle = fogGradient;
-        fogCtx.fillRect(x, y, width, height);
+        drawWrappedFogPatch(fogCtx, x, y, width, height, fogCanvas.width);
     }
-    makeLayerTileable(fogCanvas);
     
     layers.push(fogCanvas);
     
@@ -1701,6 +1691,35 @@ function drawCloud(ctx, x, y, width, height) {
         ctx.beginPath();
         ctx.arc(bubbleX, bubbleY, size, 0, Math.PI * 2);
         ctx.fill();
+    }
+}
+
+function drawWrappedCloud(ctx, x, y, width, height, canvasWidth) {
+    drawCloud(ctx, x, y, width, height);
+
+    if (x + width > canvasWidth) {
+        drawCloud(ctx, x - canvasWidth, y, width, height);
+    }
+}
+
+function drawWrappedFogPatch(ctx, x, y, width, height, canvasWidth) {
+    function fillFogPatch(patchX) {
+        const fogGradient = ctx.createRadialGradient(
+            patchX + width / 2, y + height / 2, 0,
+            patchX + width / 2, y + height / 2, width / 2
+        );
+
+        fogGradient.addColorStop(0, 'rgba(200, 200, 255, 0.2)');
+        fogGradient.addColorStop(1, 'rgba(200, 200, 255, 0)');
+
+        ctx.fillStyle = fogGradient;
+        ctx.fillRect(patchX, y, width, height);
+    }
+
+    fillFogPatch(x);
+
+    if (x + width > canvasWidth) {
+        fillFogPatch(x - canvasWidth);
     }
 }
 
@@ -2772,6 +2791,10 @@ function updateCoins(deltaTime) {
     // Update coin positions and animation
     for (let i = gameState.coins.length - 1; i >= 0; i--) {
         const coin = gameState.coins[i];
+
+        if (!gameState.activePowerups[POWERUP_TYPES.MAGNET] && coin.magnetized) {
+            coin.magnetized = false;
+        }
         
         // Check if magnet power-up is active
         if (gameState.activePowerups[POWERUP_TYPES.MAGNET] && !coin.magnetized) {
@@ -2860,7 +2883,7 @@ function checkCollisions() {
                 gameState.score += 25 * gameState.scoreMultiplier;
                 updateScore();
                 
-                return;
+                break;
             }
             
             // Handle normal collision (lose a life)
@@ -3140,35 +3163,33 @@ function drawSpecialCoinAura(coin) {
 }
 
 function drawLandingGuide() {
+    const movementAssistActive =
+        gameState.activePowerups[POWERUP_TYPES.JUMP_2X] ||
+        gameState.activePowerups[POWERUP_TYPES.JUMP_3X] ||
+        gameState.activePowerups[POWERUP_TYPES.HANGTIME] ||
+        gameState.activePowerups[POWERUP_TYPES.AIR_JUMP];
+
+    if (!movementAssistActive) return;
+
     const landingProjection = getLandingProjection();
     if (!landingProjection) return;
     
     const playerBounds = getPlayerVisualBounds();
     const playerCenterX = playerBounds.centerX;
-    const playerTopY = playerBounds.top;
     const groundLineY = GAME_HEIGHT - GROUND_HEIGHT;
     
     const projectedLandingX = playerCenterX + landingProjection.groundDistance;
     const clampedLandingX = Math.max(24, Math.min(GAME_WIDTH - 24, projectedLandingX));
-    const etaSeconds = landingProjection.framesToLanding / 60;
+    const pulse = 1 + Math.sin(gameTime / 120) * 0.12;
     
     ctx.save();
-    
-    ctx.setLineDash([6, 6]);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(playerCenterX, playerTopY);
-    ctx.lineTo(clampedLandingX, groundLineY - 14);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
+
     ctx.fillStyle = 'rgba(255, 214, 72, 0.2)';
     ctx.beginPath();
     ctx.ellipse(
         clampedLandingX,
         groundLineY - 7,
-        Math.max(14, gameState.dimbadimba.width * 0.5),
+        Math.max(16, gameState.dimbadimba.width * 0.5) * pulse,
         8,
         0,
         0,
@@ -3178,7 +3199,7 @@ function drawLandingGuide() {
 
     ctx.fillStyle = 'rgba(255, 214, 72, 0.9)';
     ctx.beginPath();
-    ctx.arc(clampedLandingX, groundLineY - 7, 8, 0, Math.PI * 2);
+    ctx.arc(clampedLandingX, groundLineY - 7, 6, 0, Math.PI * 2);
     ctx.fill();
     
     if (projectedLandingX > GAME_WIDTH - 24) {
@@ -3190,17 +3211,7 @@ function drawLandingGuide() {
         ctx.closePath();
         ctx.fill();
     }
-    
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillStyle = '#fff5b0';
-    const guideText = `LAND ${etaSeconds.toFixed(1)}s • +${Math.round(landingProjection.groundDistance)}px`;
-    ctx.strokeText(guideText, clampedLandingX, groundLineY - 18);
-    ctx.fillText(guideText, clampedLandingX, groundLineY - 18);
-    
+
     ctx.restore();
 }
 
@@ -3716,7 +3727,7 @@ function deactivatePowerup(type) {
             gameState.scoreMultiplier = 1;
             break;
         case POWERUP_TYPES.AIR_JUMP:
-            gameState.airJumpsRemaining = gameState.dimbadimba.jumping ? 0 : getAvailableAirJumps();
+            gameState.airJumpsRemaining = 0;
             break;
         // Other power-ups automatically stop when removed from activePowerups
     }
@@ -4443,8 +4454,8 @@ function drawBackground() {
         if (!layer || layer.width <= 0) continue;
         
         // Normalize and pixel-snap positions to prevent seam artifacts between tiled copies
-        const normalizedOffset = ((gameState.backgroundPos[i] % layer.width) + layer.width) % layer.width;
-        let drawX = -Math.round(normalizedOffset) - layer.width;
+        const normalizedOffset = Math.round(gameState.backgroundPos[i] % layer.width);
+        let drawX = -normalizedOffset;
         
         while (drawX < GAME_WIDTH) {
             ctx.drawImage(layer, drawX, 0);
@@ -4464,12 +4475,7 @@ function updateBackground() {
         
         // Move each layer at different speeds
         const speed = getCurrentGameSpeed() * gameState.backgroundSpeed[i];
-        gameState.backgroundPos[i] -= speed;
-        
-        // Prevent position from getting too large by keeping it within width
-        if (Math.abs(gameState.backgroundPos[i]) > layer.width * 2) {
-            gameState.backgroundPos[i] %= layer.width;
-        }
+        gameState.backgroundPos[i] = (gameState.backgroundPos[i] + speed) % layer.width;
     }
 }
 
@@ -4643,12 +4649,13 @@ function checkNearMiss(obstacle) {
     const previousObstacleLeft = typeof obstacle.previousX === 'number' ? obstacle.previousX : obstacle.x;
     const playerBottom = gameState.dimbadimba.y + gameState.dimbadimba.height;
     const obstacleTop = obstacle.y;
+    const nearMissTolerance = Math.min(10, Math.max(6, obstacle.height * 0.12));
     
     // Detect near miss when obstacle crosses player's front edge this frame.
     const crossedPlayerEdge = previousObstacleLeft >= playerRight && obstacleLeft < playerRight;
     if (crossedPlayerEdge) {
         // Check if player was jumping over (bottom of player near top of obstacle)
-        if (playerBottom < obstacleTop + 20 && playerBottom > obstacleTop - 28) {
+        if (playerBottom < obstacleTop + nearMissTolerance && playerBottom > obstacleTop - nearMissTolerance) {
             // Near miss! Mark as checked using Set
             gameState.checkedObstacleIds.add(obstacle.id);
             gameState.nearMissCount++;

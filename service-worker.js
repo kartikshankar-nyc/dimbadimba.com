@@ -4,7 +4,7 @@
  */
 
 const CACHE_VERSION = 2;
-const DEPLOY_TIMESTAMP = '1782945833665';
+const DEPLOY_TIMESTAMP = '1782947185712';
 const CACHE_NAME = `dimbadimba-cache-v${CACHE_VERSION}-${DEPLOY_TIMESTAMP}`;
 
 // Debug logging - shows in the service worker console in the browser
@@ -102,16 +102,7 @@ self.addEventListener('activate', event => {
       );
     }).then(() => {
       swLog('Service worker now controls all clients');
-      // Notify all clients about the update
-      return self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'UPDATE_FOUND',
-            version: CACHE_VERSION
-          });
-        });
-        return self.clients.claim(); // Take control of all pages immediately
-      });
+      return self.clients.claim(); // Take control of all pages immediately
     })
   );
 });

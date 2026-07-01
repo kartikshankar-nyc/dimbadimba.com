@@ -41,10 +41,9 @@ test.describe('Pixel Runner Game Basic Functionality', () => {
     expect(initialY).toBeGreaterThan(0);
     
     // Press space to jump
-    await page.keyboard.press(' ');
-    
-    // Wait for the jump state to begin
+    await page.keyboard.press('Space');
     await page.waitForFunction(() => gameState.dimbadimba.jumping === true);
+    await page.waitForFunction((startingY) => gameState.dimbadimba.y < startingY, initialY);
     
     // Get the new y position
     const jumpingY = await page.evaluate(() => {

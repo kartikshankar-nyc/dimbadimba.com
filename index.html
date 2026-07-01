@@ -13,7 +13,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="description" content="Join dimbadimba on an endless adventure. Jump over obstacles, collect coins, and set high scores in this fast-paced pixel art runner game.">
     <title>Dimbadimba - Pixel Runner Game</title>
-    <link rel="stylesheet" href="style.css?v=833665">
+    <link rel="stylesheet" href="style.css?v=185712">
     <link rel="stylesheet" href="character-display.css">
     <link rel="manifest" href="manifest.json">
     
@@ -166,15 +166,46 @@
     </div>
     
     <!-- Add version query param to script file -->
-    <script src="script.js?v=833665"></script>
+    <script src="script.js?v=185712"></script>
     <script>
         // Improved service worker registration with better update handling
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Add timestamp & cache busting parameter
-                const swUrl = './service-worker.js?v=' + new Date().getTime();
-                
-                navigator.serviceWorker.register(swUrl)
+                const updateNotification = document.getElementById('updateNotification');
+                const updateButton = document.getElementById('updateNow');
+                const pageOpenedAt = Date.now();
+                let refreshing = false;
+
+                function showUpdateNotification() {
+                    if (!updateNotification) return;
+
+                    updateNotification.classList.remove('hidden');
+
+                    const timeOnPageMinutes = (Date.now() - pageOpenedAt) / 1000 / 60;
+                    if (timeOnPageMinutes > 10) {
+                        updateNotification.classList.add('prominent');
+                    } else {
+                        updateNotification.classList.remove('prominent');
+                    }
+                }
+
+                function hideUpdateNotification() {
+                    if (!updateNotification) return;
+
+                    updateNotification.classList.add('hidden');
+                    updateNotification.classList.remove('prominent');
+                }
+
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (refreshing) return;
+
+                    refreshing = true;
+                    hideUpdateNotification();
+                    console.log('New service worker controller, refreshing page...');
+                    window.location.reload();
+                });
+
+                navigator.serviceWorker.register('./service-worker.js')
                     .then(registration => {
                         console.log('Service Worker registered with scope:', registration.scope);
                         
@@ -208,6 +239,21 @@
                                 console.log('Service worker state changed to:', newWorker.state);
                             });
                         });
+
+                        if (updateButton) {
+                            updateButton.addEventListener('click', async () => {
+                                const reg = await navigator.serviceWorker.getRegistration();
+
+                                if (reg && reg.waiting) {
+                                    console.log('Sending skip waiting message to service worker');
+                                    hideUpdateNotification();
+                                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                                } else {
+                                    console.log('No waiting service worker found');
+                                    hideUpdateNotification();
+                                }
+                            });
+                        }
                     })
                     .catch(error => {
                         console.error('Service Worker registration failed:', error);
@@ -242,73 +288,6 @@
                     if (document.visibilityState === 'visible') {
                         console.log('Page visible again, checking for updates');
                         checkForUpdates();
-                    }
-                });
-                
-                // Helper function to show update notification
-                function showUpdateNotification() {
-                    const notification = document.getElementById('updateNotification');
-                    if (notification) {
-                        notification.classList.remove('hidden');
-                        
-                        // If user has been on page a while, make notification more visible
-                        const pageLoadTime = window.performance.timing.navigationStart;
-                        const currentTime = new Date().getTime();
-                        const timeOnPage = (currentTime - pageLoadTime) / 1000 / 60; // minutes
-                        
-                        if (timeOnPage > 10) { // If on page more than 10 minutes
-                            notification.classList.add('prominent');
-                        }
-                    }
-                }
-            });
-        }
-    </script>
-    
-    <!-- Update handler -->
-    <script>
-        // Handle service worker updates
-        if ('serviceWorker' in navigator) {
-            let refreshing = false;
-            
-            // When the page refreshes due to a new service worker
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing) return;
-                refreshing = true;
-                console.log('New service worker controller, refreshing page...');
-                window.location.reload();
-            });
-            
-            // Set up update button
-            window.addEventListener('load', () => {
-                const updateButton = document.getElementById('updateNow');
-                if (updateButton) {
-                    updateButton.addEventListener('click', () => {
-                        navigator.serviceWorker.getRegistration().then(reg => {
-                            if (reg && reg.waiting) {
-                                console.log('Sending skip waiting message to service worker');
-                                
-                                // Post message to the waiting service worker
-                                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                                
-                                // Hide the notification
-                                const notification = document.getElementById('updateNotification');
-                                if (notification) notification.classList.add('hidden');
-                            } else {
-                                console.log('No waiting service worker found');
-                                
-                                // Fallback - force reload from server
-                                window.location.reload(true);
-                            }
-                        });
-                    });
-                }
-                
-                // Listen for messages from service worker
-                navigator.serviceWorker.addEventListener('message', event => {
-                    console.log('Message from service worker:', event.data);
-                    if (event.data && event.data.type === 'UPDATE_FOUND') {
-                        showUpdateNotification();
                     }
                 });
             });

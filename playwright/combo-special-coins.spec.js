@@ -47,6 +47,40 @@ test.describe('Combo and special coin mechanics', () => {
     expect(result.checkedSize).toBe(1);
   });
 
+  test('near-miss does not trigger for loose clears outside the precision window', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      gameState.paused = true;
+      gameState.checkedObstacleIds = new Set();
+      gameState.combo.count = 0;
+      gameState.combo.multiplier = 1;
+      gameState.nearMissCount = 0;
+      gameState.score = 0;
+
+      const playerRight = gameState.dimbadimba.x + gameState.dimbadimba.width;
+      const playerBottom = gameState.dimbadimba.y + gameState.dimbadimba.height;
+      const obstacle = {
+        id: 999002,
+        x: playerRight - 2,
+        previousX: playerRight + 10,
+        y: playerBottom - 20,
+        width: 35,
+        height: 55
+      };
+
+      checkNearMiss(obstacle);
+
+      return {
+        nearMissCount: gameState.nearMissCount,
+        comboCount: gameState.combo.count,
+        score: gameState.score
+      };
+    });
+
+    expect(result.nearMissCount).toBe(0);
+    expect(result.comboCount).toBe(0);
+    expect(result.score).toBe(0);
+  });
+
   test('combo resets after timeout window', async ({ page }) => {
     const result = await page.evaluate(() => {
       gameState.combo.count = 4;
@@ -205,5 +239,88 @@ test.describe('Combo and special coin mechanics', () => {
     expect(result.airJumpsAfterSecondJump).toBe(result.airJumpsAfterFirstJump - 1);
     expect(result.secondJumpVelocity).toBeLessThan(-2);
     expect(result.jump3Expired).toBeTruthy();
+  });
+
+  test('magnetized coins reset once the magnet power-up expires', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      gameState.paused = true;
+      gameState.coins = [];
+      gameState.activePowerups = {};
+
+      const player = gameState.dimbadimba;
+      gameState.coins.push({
+        x: player.x + 30,
+        y: player.y + 10,
+        width: COIN_SIZE,
+        height: COIN_SIZE,
+        rotation: 0,
+        magnetized: false,
+        specialType: null,
+        pulseOffset: 0
+      });
+
+      activatePowerup(POWERUP_TYPES.MAGNET, 1000);
+      updateCoins(16);
+      const magnetizedWhileActive = gameState.coins[0].magnetized;
+
+      deactivatePowerup(POWERUP_TYPES.MAGNET);
+      updateCoins(16);
+      const magnetizedAfterExpire = gameState.coins[0].magnetized;
+
+      return {
+        magnetizedWhileActive,
+        magnetizedAfterExpire
+      };
+    });
+
+    expect(result.magnetizedWhileActive).toBeTruthy();
+    expect(result.magnetizedAfterExpire).toBeFalsy();
+  });
+
+  test('shielded obstacle collisions still allow same-frame coin pickups', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      gameState.paused = true;
+      gameState.score = 0;
+      gameState.obstacles = [];
+      gameState.coins = [];
+      gameState.powerups = [];
+      gameState.activePowerups = {};
+
+      activatePowerup(POWERUP_TYPES.SHIELD, 1000);
+
+      gameState.obstacles.push({
+        id: 999003,
+        x: gameState.dimbadimba.x + 5,
+        y: gameState.dimbadimba.y,
+        width: 30,
+        height: 50,
+        shapeIndex: 0
+      });
+
+      gameState.coins.push({
+        x: gameState.dimbadimba.x + 5,
+        y: gameState.dimbadimba.y + 5,
+        width: COIN_SIZE,
+        height: COIN_SIZE,
+        rotation: 0,
+        magnetized: false,
+        specialType: null,
+        pulseOffset: 0
+      });
+
+      checkCollisions();
+
+      return {
+        obstacleCount: gameState.obstacles.length,
+        coinCount: gameState.coins.length,
+        shieldStillActive: !!gameState.activePowerups[POWERUP_TYPES.SHIELD],
+        score: gameState.score
+      };
+    });
+
+    expect(result.obstacleCount).toBe(0);
+    expect(result.coinCount).toBe(0);
+    expect(result.shieldStillActive).toBeFalsy();
+    expect(result.score).toBeGreaterThan(25);
   });
 });

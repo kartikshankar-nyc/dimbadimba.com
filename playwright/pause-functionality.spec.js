@@ -121,21 +121,24 @@ test.describe('Game Pause Functionality', () => {
     
     expect(speedIsReasonable).toBeTruthy();
     
-    // Check that deltaTime is being calculated correctly after pause/unpause
-    const deltaTimeIsReasonable = await page.evaluate(() => {
-      // Create a test to check if deltaTime in the next frame is reasonable
+    // Check that animation resumes cleanly after pause/unpause cycles
+    const animationResumedCleanly = await page.evaluate(() => {
       return new Promise(resolve => {
-        let lastTimestamp = performance.now();
-        
-        // Use the game's own requestAnimationFrame for a frame
-        requestAnimationFrame(timestamp => {
-          const deltaTime = timestamp - lastTimestamp;
-          // deltaTime should be around 16-17ms (60fps) or at most 100ms (our cap)
-          resolve(deltaTime >= 0 && deltaTime <= 100);
+        const initialBackgroundPos = gameState.backgroundPos[0];
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve(
+              gameState.running &&
+              !gameState.paused &&
+              Number.isFinite(lastTime) &&
+              gameState.backgroundPos[0] !== initialBackgroundPos
+            );
+          });
         });
       });
     });
     
-    expect(deltaTimeIsReasonable).toBeTruthy();
+    expect(animationResumedCleanly).toBeTruthy();
   });
 }); 
