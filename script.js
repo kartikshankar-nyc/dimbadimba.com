@@ -84,6 +84,7 @@ const SMOKE_SIZE_MAX = 12;       // Reduced from 15
 const SMOKE_LIFETIME = 2400;     // Increased from 2000 ms for longer-lasting smoke
 const PLAYER_TOP_SAFE_MARGIN = 70;
 const BACKGROUND_TILE_OVERLAP = 1;
+const BACKGROUND_SEAM_FIX_WIDTH = 4;
 
 // Unique ID counter for obstacles
 let obstacleIdCounter = 0;
@@ -1410,6 +1411,17 @@ function createBackgroundSprites() {
     sprites.background = gameState.dayMode ? sprites.dayBackground : sprites.nightBackground;
 }
 
+function makeLayerTileable(layerCanvas) {
+    const seamWidth = Math.min(BACKGROUND_SEAM_FIX_WIDTH, Math.floor(layerCanvas.width / 4));
+    if (seamWidth <= 0) return;
+
+    const layerCtx = layerCanvas.getContext('2d');
+    if (!layerCtx) return;
+
+    const leftEdge = layerCtx.getImageData(0, 0, seamWidth, layerCanvas.height);
+    layerCtx.putImageData(leftEdge, layerCanvas.width - seamWidth, 0);
+}
+
 function createParallaxBackgroundDay() {
     const layers = [];
     
@@ -1442,6 +1454,7 @@ function createParallaxBackgroundDay() {
     
     skyCtx.fillStyle = sunGradient;
     skyCtx.fillRect(sunX - sunSize, sunY - sunSize, sunSize * 2, sunSize * 2);
+    makeLayerTileable(skyCanvas);
     
     layers.push(skyCanvas);
     
@@ -1454,6 +1467,7 @@ function createParallaxBackgroundDay() {
     // Create distant mountains
     drawMountainRange(mountainsCtx, mountainsCanvas.width, mountainsCanvas.height, 
                      'rgba(120, 160, 180, 0.5)', 0.6, 3);
+    makeLayerTileable(mountainsCanvas);
     
     layers.push(mountainsCanvas);
     
@@ -1466,6 +1480,7 @@ function createParallaxBackgroundDay() {
     // Create medium-distance hills
     drawMountainRange(hillsCtx, hillsCanvas.width, hillsCanvas.height, 
                      'rgba(100, 170, 100, 0.7)', 0.4, 5);
+    makeLayerTileable(hillsCanvas);
     
     layers.push(hillsCanvas);
     
@@ -1486,6 +1501,7 @@ function createParallaxBackgroundDay() {
         
         drawCloud(cloudsCtx, cloudX, cloudY, cloudWidth, cloudHeight);
     }
+    makeLayerTileable(cloudsCanvas);
     
     layers.push(cloudsCanvas);
     
@@ -1546,6 +1562,7 @@ function createParallaxBackgroundNight() {
         skyCtx.arc(craterX, craterY, craterSize, 0, Math.PI * 2);
         skyCtx.fill();
     }
+    makeLayerTileable(skyCanvas);
     
     layers.push(skyCanvas);
     
@@ -1558,6 +1575,7 @@ function createParallaxBackgroundNight() {
     // Create distant mountains (darker for night)
     drawMountainRange(mountainsCtx, mountainsCanvas.width, mountainsCanvas.height, 
                      'rgba(40, 45, 60, 0.7)', 0.6, 3);
+    makeLayerTileable(mountainsCanvas);
     
     layers.push(mountainsCanvas);
     
@@ -1570,6 +1588,7 @@ function createParallaxBackgroundNight() {
     // Create medium-distance hills (darker for night)
     drawMountainRange(hillsCtx, hillsCanvas.width, hillsCanvas.height, 
                      'rgba(30, 50, 40, 0.8)', 0.4, 5);
+    makeLayerTileable(hillsCanvas);
     
     layers.push(hillsCanvas);
     
@@ -1596,6 +1615,7 @@ function createParallaxBackgroundNight() {
         fogCtx.fillStyle = fogGradient;
         fogCtx.fillRect(x, y, width, height);
     }
+    makeLayerTileable(fogCanvas);
     
     layers.push(fogCanvas);
     
@@ -4401,15 +4421,20 @@ function drawBackground() {
 
 // Update background positions for parallax effect
 function updateBackground() {
+    const layers = gameState.dayMode ? sprites.parallaxLayers.day : sprites.parallaxLayers.night;
+    
     // Update each background layer position based on its speed
     for (let i = 0; i < gameState.backgroundPos.length; i++) {
+        const layer = layers[i];
+        if (!layer || layer.width <= 0) continue;
+        
         // Move each layer at different speeds
         const speed = getCurrentGameSpeed() * gameState.backgroundSpeed[i];
         gameState.backgroundPos[i] -= speed;
         
         // Prevent position from getting too large by keeping it within width
-        if (Math.abs(gameState.backgroundPos[i]) > GAME_WIDTH * 2) {
-            gameState.backgroundPos[i] %= GAME_WIDTH;
+        if (Math.abs(gameState.backgroundPos[i]) > layer.width * 2) {
+            gameState.backgroundPos[i] %= layer.width;
         }
     }
 }
