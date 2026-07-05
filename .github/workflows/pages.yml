@@ -1,0 +1,76 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare static site artifact
+        run: |
+          mkdir -p site-dist
+          rsync -av --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='playwright-report/' \
+            --exclude='test-results/' \
+            --exclude='tests/' \
+            --exclude='test/' \
+            --exclude='src/' \
+            --exclude='playwright/' \
+            --exclude='site-dist/' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            --exclude='tsconfig.json' \
+            --exclude='.babelrc' \
+            --exclude='.eslintrc.js' \
+            --exclude='.prettierrc' \
+            --exclude='deploy.sh' \
+            --exclude='asset-hashing.js' \
+            --exclude='update-cache-version.js' \
+            --exclude='run-tests.sh' \
+            --exclude='debug-cache.js' \
+            --exclude='index.dev.html' \
+            --exclude='jest.setup.js' \
+            --exclude='*.md' \
+            ./ site-dist/
+          touch site-dist/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site-dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
