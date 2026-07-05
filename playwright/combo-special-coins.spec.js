@@ -3,6 +3,12 @@ const { test, expect } = require('@playwright/test');
 test.describe('Combo and special coin mechanics', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/index.html');
+
+    const dismissOrientation = page.locator('#dismiss-orientation');
+    if (await dismissOrientation.isVisible().catch(() => false)) {
+      await dismissOrientation.click();
+    }
+
     await page.waitForSelector('#startButton');
     await page.click('#startButton');
     await page.waitForTimeout(400);

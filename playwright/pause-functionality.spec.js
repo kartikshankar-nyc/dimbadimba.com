@@ -4,6 +4,11 @@ test.describe('Game Pause Functionality', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the game
     await page.goto('/index.html');
+
+    const dismissOrientation = page.locator('#dismiss-orientation');
+    if (await dismissOrientation.isVisible().catch(() => false)) {
+      await dismissOrientation.click();
+    }
     
     // Wait for the game to load
     await page.waitForSelector('#startButton');

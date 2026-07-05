@@ -735,7 +735,19 @@ function loadSounds() {
         sounds.coin = function() {};
         sounds.gameOver = function() {};
         sounds.powerup = function() {};
-        sounds.backgroundMusic = { play: function() {}, stop: function() {} };
+        sounds.backgroundMusic = {
+            play: function() {},
+            stop: function() {},
+            refreshMode: function() {},
+            getDebugState: function() {
+                return {
+                    modeKey: gameState.dayMode ? 'day' : 'night',
+                    trackName: null,
+                    trackLoopCount: 0,
+                    queued: false
+                };
+            }
+        };
         sounds.hit = function() {};
     }
 }
@@ -754,20 +766,16 @@ function createSound(setupFn) {
 }
 
 function createLoopingMusic(audioCtx) {
-    // Musical notes in Hz (based on A4 = 440Hz)
     const NOTES = {
-        // Lower octave
         C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61,
         G3: 196.00, A3: 220.00, B3: 246.94,
-        // Middle octave
-        C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, 
+        C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23,
         G4: 392.00, A4: 440.00, B4: 493.88,
-        // Upper octave
-        C5: 523.25, D5: 587.33, E5: 659.25,
+        C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46,
+        G5: 783.99, A5: 880.00,
         REST: 0
     };
-    
-    // Happy, peppy music patterns for day mode (all in C major)
+
     const dayMelodyPatterns = [
         [
             { note: NOTES.E4, duration: 0.12, type: 'triangle' },
@@ -822,10 +830,55 @@ function createLoopingMusic(audioCtx) {
             { note: NOTES.C5, duration: 0.16, type: 'triangle' },
             { note: NOTES.G4, duration: 0.16, type: 'triangle' },
             { note: NOTES.E4, duration: 0.16, type: 'triangle' }
+        ],
+        [
+            { note: NOTES.G4, duration: 0.12, type: 'square' },
+            { note: NOTES.E4, duration: 0.12, type: 'square' },
+            { note: NOTES.C4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.E4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.24, type: 'triangle' },
+            { note: NOTES.A4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.E4, duration: 0.24, type: 'triangle' },
+            { note: NOTES.F4, duration: 0.12, type: 'square' },
+            { note: NOTES.A4, duration: 0.12, type: 'square' },
+            { note: NOTES.C5, duration: 0.24, type: 'triangle' },
+            { note: NOTES.A4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.24, type: 'triangle' }
+        ],
+        [
+            { note: NOTES.E4, duration: 0.08, type: 'sine' },
+            { note: NOTES.G4, duration: 0.08, type: 'sine' },
+            { note: NOTES.A4, duration: 0.08, type: 'sine' },
+            { note: NOTES.C5, duration: 0.16, type: 'triangle' },
+            { note: NOTES.E5, duration: 0.16, type: 'triangle' },
+            { note: NOTES.D5, duration: 0.08, type: 'triangle' },
+            { note: NOTES.C5, duration: 0.08, type: 'triangle' },
+            { note: NOTES.A4, duration: 0.16, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.08, type: 'sine' },
+            { note: NOTES.E4, duration: 0.08, type: 'sine' },
+            { note: NOTES.F4, duration: 0.16, type: 'sine' },
+            { note: NOTES.G4, duration: 0.08, type: 'sine' },
+            { note: NOTES.A4, duration: 0.08, type: 'sine' },
+            { note: NOTES.C5, duration: 0.24, type: 'triangle' }
+        ],
+        [
+            { note: NOTES.C4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.D4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.E4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.24, type: 'triangle' },
+            { note: NOTES.E4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.A4, duration: 0.24, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.E4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.D4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.C4, duration: 0.24, type: 'triangle' },
+            { note: NOTES.E4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.24, type: 'triangle' }
         ]
     ];
-    
-    // More mysterious but still melodic patterns for night mode (mostly in A minor)
+
     const nightMelodyPatterns = [
         [
             { note: NOTES.E4, duration: 0.12, type: 'sine' },
@@ -880,10 +933,51 @@ function createLoopingMusic(audioCtx) {
             { note: NOTES.C5, duration: 0.16, type: 'sine' },
             { note: NOTES.B4, duration: 0.16, type: 'sine' },
             { note: NOTES.A4, duration: 0.16, type: 'sine' }
+        ],
+        [
+            { note: NOTES.A4, duration: 0.12, type: 'sine' },
+            { note: NOTES.G4, duration: 0.12, type: 'sine' },
+            { note: NOTES.E4, duration: 0.24, type: 'sine' },
+            { note: NOTES.G4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.A4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.C5, duration: 0.24, type: 'triangle' },
+            { note: NOTES.E5, duration: 0.12, type: 'triangle' },
+            { note: NOTES.D5, duration: 0.12, type: 'triangle' },
+            { note: NOTES.C5, duration: 0.24, type: 'triangle' },
+            { note: NOTES.B4, duration: 0.12, type: 'sine' },
+            { note: NOTES.A4, duration: 0.24, type: 'sine' },
+            { note: NOTES.E4, duration: 0.24, type: 'sine' }
+        ],
+        [
+            { note: NOTES.E4, duration: 0.08, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.08, type: 'triangle' },
+            { note: NOTES.A4, duration: 0.16, type: 'triangle' },
+            { note: NOTES.B4, duration: 0.08, type: 'triangle' },
+            { note: NOTES.C5, duration: 0.08, type: 'triangle' },
+            { note: NOTES.E5, duration: 0.16, type: 'triangle' },
+            { note: NOTES.D5, duration: 0.08, type: 'triangle' },
+            { note: NOTES.C5, duration: 0.08, type: 'triangle' },
+            { note: NOTES.A4, duration: 0.16, type: 'triangle' },
+            { note: NOTES.G4, duration: 0.08, type: 'sine' },
+            { note: NOTES.E4, duration: 0.08, type: 'sine' },
+            { note: NOTES.A4, duration: 0.24, type: 'sine' }
+        ],
+        [
+            { note: NOTES.C5, duration: 0.12, type: 'sine' },
+            { note: NOTES.B4, duration: 0.12, type: 'sine' },
+            { note: NOTES.A4, duration: 0.12, type: 'sine' },
+            { note: NOTES.G4, duration: 0.24, type: 'sine' },
+            { note: NOTES.E4, duration: 0.12, type: 'sine' },
+            { note: NOTES.G4, duration: 0.12, type: 'sine' },
+            { note: NOTES.A4, duration: 0.24, type: 'triangle' },
+            { note: NOTES.C5, duration: 0.12, type: 'triangle' },
+            { note: NOTES.B4, duration: 0.12, type: 'triangle' },
+            { note: NOTES.A4, duration: 0.24, type: 'triangle' },
+            { note: NOTES.E4, duration: 0.12, type: 'sine' },
+            { note: NOTES.A4, duration: 0.24, type: 'sine' }
         ]
     ];
-    
-    // Consistent, driving bass patterns for day mode
+
     const dayBassPatterns = [
         [
             { note: NOTES.C3, duration: 0.16, type: 'sine' },
@@ -916,10 +1010,37 @@ function createLoopingMusic(audioCtx) {
             { note: NOTES.C3, duration: 0.24, type: 'sine' },
             { note: NOTES.E3, duration: 0.12, type: 'sine' },
             { note: NOTES.G3, duration: 0.12, type: 'sine' }
+        ],
+        [
+            { note: NOTES.C3, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.12, type: 'sine' },
+            { note: NOTES.E3, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.12, type: 'sine' },
+            { note: NOTES.A3, duration: 0.24, type: 'sine' },
+            { note: NOTES.E3, duration: 0.24, type: 'sine' },
+            { note: NOTES.F3, duration: 0.12, type: 'sine' },
+            { note: NOTES.C4, duration: 0.12, type: 'sine' },
+            { note: NOTES.A3, duration: 0.12, type: 'sine' },
+            { note: NOTES.C4, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.24, type: 'sine' },
+            { note: NOTES.D4, duration: 0.24, type: 'sine' }
+        ],
+        [
+            { note: NOTES.C3, duration: 0.24, type: 'sine' },
+            { note: NOTES.C4, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.12, type: 'sine' },
+            { note: NOTES.A3, duration: 0.24, type: 'sine' },
+            { note: NOTES.E3, duration: 0.12, type: 'sine' },
+            { note: NOTES.A3, duration: 0.12, type: 'sine' },
+            { note: NOTES.F3, duration: 0.24, type: 'sine' },
+            { note: NOTES.C4, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.24, type: 'sine' },
+            { note: NOTES.D4, duration: 0.12, type: 'sine' },
+            { note: NOTES.B3, duration: 0.12, type: 'sine' }
         ]
     ];
-    
-    // Consistent bass patterns for night mode
+
     const nightBassPatterns = [
         [
             { note: NOTES.A3, duration: 0.16, type: 'sine' },
@@ -952,183 +1073,315 @@ function createLoopingMusic(audioCtx) {
             { note: NOTES.E3, duration: 0.24, type: 'sine' },
             { note: NOTES.B3, duration: 0.12, type: 'sine' },
             { note: NOTES.E3, duration: 0.12, type: 'sine' }
-        ]
-    ];
-    
-    // Shared bridge patterns for smooth transitions between different melody sections
-    const bridgePatterns = [
-        [
-            { note: NOTES.C4, duration: 0.12, type: 'triangle' },
-            { note: NOTES.E4, duration: 0.12, type: 'triangle' },
-            { note: NOTES.G4, duration: 0.12, type: 'triangle' },
-            { note: NOTES.C5, duration: 0.12, type: 'triangle' }
         ],
         [
-            { note: NOTES.A4, duration: 0.12, type: 'sine' },
-            { note: NOTES.E4, duration: 0.12, type: 'sine' },
-            { note: NOTES.C4, duration: 0.12, type: 'sine' },
+            { note: NOTES.A3, duration: 0.12, type: 'sine' },
+            { note: NOTES.E3, duration: 0.12, type: 'sine' },
+            { note: NOTES.C3, duration: 0.12, type: 'sine' },
+            { note: NOTES.E3, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.24, type: 'sine' },
+            { note: NOTES.D3, duration: 0.24, type: 'sine' },
+            { note: NOTES.F3, duration: 0.12, type: 'sine' },
+            { note: NOTES.C3, duration: 0.12, type: 'sine' },
+            { note: NOTES.A3, duration: 0.12, type: 'sine' },
+            { note: NOTES.C3, duration: 0.12, type: 'sine' },
+            { note: NOTES.E3, duration: 0.24, type: 'sine' },
+            { note: NOTES.B3, duration: 0.24, type: 'sine' }
+        ],
+        [
+            { note: NOTES.A3, duration: 0.24, type: 'sine' },
+            { note: NOTES.E3, duration: 0.12, type: 'sine' },
+            { note: NOTES.A3, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.24, type: 'sine' },
+            { note: NOTES.D3, duration: 0.12, type: 'sine' },
+            { note: NOTES.G3, duration: 0.12, type: 'sine' },
+            { note: NOTES.F3, duration: 0.24, type: 'sine' },
+            { note: NOTES.C3, duration: 0.12, type: 'sine' },
+            { note: NOTES.E3, duration: 0.12, type: 'sine' },
+            { note: NOTES.E3, duration: 0.24, type: 'sine' },
+            { note: NOTES.B3, duration: 0.12, type: 'sine' },
             { note: NOTES.A3, duration: 0.12, type: 'sine' }
         ]
     ];
-    
-    let currentPatternIndex = 0;
+
+    const musicTrackCatalog = {
+        day: [
+            {
+                name: 'sunrise-sprint',
+                melodyPatternIndices: [0, 3],
+                bassPatternIndices: [0, 2],
+                bridge: [
+                    { note: NOTES.C4, duration: 0.10, type: 'triangle' },
+                    { note: NOTES.E4, duration: 0.10, type: 'triangle' },
+                    { note: NOTES.G4, duration: 0.10, type: 'triangle' },
+                    { note: NOTES.C5, duration: 0.16, type: 'triangle' }
+                ],
+                loopsBeforeRotate: 2,
+                tempoSwing: 0.016,
+                chordChance: 0.38,
+                melodyGain: 0.13,
+                bassGain: 0.18
+            },
+            {
+                name: 'arcade-hop',
+                melodyPatternIndices: [1, 4],
+                bassPatternIndices: [1, 3],
+                bridge: [
+                    { note: NOTES.E4, duration: 0.08, type: 'square' },
+                    { note: NOTES.G4, duration: 0.08, type: 'square' },
+                    { note: NOTES.A4, duration: 0.08, type: 'triangle' },
+                    { note: NOTES.C5, duration: 0.16, type: 'triangle' }
+                ],
+                loopsBeforeRotate: 2,
+                tempoSwing: 0.022,
+                chordChance: 0.46,
+                melodyGain: 0.12,
+                bassGain: 0.17
+            },
+            {
+                name: 'cloud-chase',
+                melodyPatternIndices: [2, 5],
+                bassPatternIndices: [0, 3],
+                bridge: [
+                    { note: NOTES.G4, duration: 0.08, type: 'sine' },
+                    { note: NOTES.A4, duration: 0.08, type: 'sine' },
+                    { note: NOTES.C5, duration: 0.08, type: 'triangle' },
+                    { note: NOTES.E5, duration: 0.16, type: 'triangle' }
+                ],
+                loopsBeforeRotate: 2,
+                tempoSwing: 0.018,
+                chordChance: 0.32,
+                melodyGain: 0.135,
+                bassGain: 0.17
+            }
+        ],
+        night: [
+            {
+                name: 'moonlit-run',
+                melodyPatternIndices: [0, 3],
+                bassPatternIndices: [0, 2],
+                bridge: [
+                    { note: NOTES.A4, duration: 0.10, type: 'sine' },
+                    { note: NOTES.E4, duration: 0.10, type: 'sine' },
+                    { note: NOTES.C4, duration: 0.10, type: 'sine' },
+                    { note: NOTES.A3, duration: 0.16, type: 'sine' }
+                ],
+                loopsBeforeRotate: 2,
+                tempoSwing: 0.014,
+                chordChance: 0.24,
+                melodyGain: 0.115,
+                bassGain: 0.18
+            },
+            {
+                name: 'neon-drift',
+                melodyPatternIndices: [1, 4],
+                bassPatternIndices: [1, 3],
+                bridge: [
+                    { note: NOTES.C5, duration: 0.08, type: 'triangle' },
+                    { note: NOTES.A4, duration: 0.08, type: 'triangle' },
+                    { note: NOTES.G4, duration: 0.08, type: 'sine' },
+                    { note: NOTES.E4, duration: 0.16, type: 'sine' }
+                ],
+                loopsBeforeRotate: 2,
+                tempoSwing: 0.02,
+                chordChance: 0.28,
+                melodyGain: 0.12,
+                bassGain: 0.175
+            },
+            {
+                name: 'starlit-pulse',
+                melodyPatternIndices: [2, 5],
+                bassPatternIndices: [0, 3],
+                bridge: [
+                    { note: NOTES.E4, duration: 0.08, type: 'sine' },
+                    { note: NOTES.G4, duration: 0.08, type: 'sine' },
+                    { note: NOTES.A4, duration: 0.08, type: 'triangle' },
+                    { note: NOTES.C5, duration: 0.16, type: 'triangle' }
+                ],
+                loopsBeforeRotate: 2,
+                tempoSwing: 0.016,
+                chordChance: 0.22,
+                melodyGain: 0.11,
+                bassGain: 0.17
+            }
+        ]
+    };
+
+    const musicMasterGain = audioCtx.createGain();
+    musicMasterGain.gain.value = 0.9;
+    musicMasterGain.connect(audioCtx.destination);
+
     let loopId = null;
     let lastMelodyPattern = -1;
     let lastBassPattern = -1;
-    let fadeOutGain = null;
-    
+    let activeModeKey = gameState.dayMode ? 'day' : 'night';
+    let activeTrack = null;
+    let activeTrackLoopCount = 0;
+    const trackRotationIndices = {
+        day: Math.floor(Math.random() * musicTrackCatalog.day.length),
+        night: Math.floor(Math.random() * musicTrackCatalog.night.length)
+    };
+
+    function getModeKey() {
+        return gameState.dayMode ? 'day' : 'night';
+    }
+
+    function getPatternsForMode(modeKey) {
+        return {
+            melody: modeKey === 'day' ? dayMelodyPatterns : nightMelodyPatterns,
+            bass: modeKey === 'day' ? dayBassPatterns : nightBassPatterns
+        };
+    }
+
+    function pickNonRepeatingPattern(patternIndices, lastPattern) {
+        if (patternIndices.length === 1) {
+            return patternIndices[0];
+        }
+
+        let selectedPattern;
+        do {
+            selectedPattern = patternIndices[Math.floor(Math.random() * patternIndices.length)];
+        } while (selectedPattern === lastPattern);
+
+        return selectedPattern;
+    }
+
+    function selectNextTrack(modeKey) {
+        const tracks = musicTrackCatalog[modeKey];
+        const selectedIndex = trackRotationIndices[modeKey] % tracks.length;
+        trackRotationIndices[modeKey] = (selectedIndex + 1) % tracks.length;
+        return tracks[selectedIndex];
+    }
+
+    function activateNextTrack(modeKey) {
+        activeModeKey = modeKey;
+        activeTrack = selectNextTrack(modeKey);
+        activeTrackLoopCount = 0;
+        lastMelodyPattern = -1;
+        lastBassPattern = -1;
+    }
+
     function playNote(note, time, duration, type, gain, isChord = false) {
         if (note === NOTES.REST || isNaN(note) || note <= 0) return;
-        
+
         try {
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
-            
+
             oscillator.type = type;
             oscillator.frequency.setValueAtTime(note, time);
-            
-            // Smoother envelope with longer attack and release for more pleasant sound
+
             const attackTime = 0.04;
             const releaseTime = isChord ? duration * 0.6 : duration * 0.4;
-            
+
             gainNode.gain.setValueAtTime(0, time);
             gainNode.gain.linearRampToValueAtTime(gain, time + attackTime);
             gainNode.gain.setValueAtTime(gain, time + duration - releaseTime);
             gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
-            
+
             oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
+            gainNode.connect(musicMasterGain);
+
             oscillator.start(time);
             oscillator.stop(time + duration);
-            
-            return gainNode; // Return the gain node for potential fade effects
+
+            return gainNode;
         } catch (e) {
             console.error("Error playing note:", e);
             return null;
         }
     }
-    
-    function playBridgePattern(time, isDayMode) {
-        // Choose a bridge pattern based on day/night mode
-        const bridgeIndex = isDayMode ? 0 : 1;
-        const bridge = bridgePatterns[bridgeIndex];
-        
+
+    function playBridgePattern(time, track) {
+        const bridge = track?.bridge || [];
         let currentTime = time;
+
         for (let i = 0; i < bridge.length; i++) {
             const note = bridge[i];
             playNote(note.note, currentTime, note.duration, note.type, 0.12);
             currentTime += note.duration;
         }
-        
-        return currentTime - time; // Return duration of bridge
+
+        return currentTime - time;
     }
-    
+
     function scheduleLoop(time) {
-        const dayMode = gameState.dayMode;
-        
-        // Select patterns based on day/night mode
-        const melodyPatterns = dayMode ? dayMelodyPatterns : nightMelodyPatterns;
-        const bassPatterns = dayMode ? dayBassPatterns : nightBassPatterns;
-        
-        // Choose a different melody pattern than the last one
-        let melodyPatternIndex;
-        do {
-            melodyPatternIndex = Math.floor(Math.random() * melodyPatterns.length);
-        } while (melodyPatternIndex === lastMelodyPattern && melodyPatterns.length > 1);
-        
-        // If it's a new pattern and not the first one, play a bridge for smooth transition
+        const modeKey = getModeKey();
         let bridgeDuration = 0;
-        if (lastMelodyPattern !== -1 && melodyPatternIndex !== lastMelodyPattern) {
-            bridgeDuration = playBridgePattern(time, dayMode);
+        const shouldRotateTrack =
+            !activeTrack ||
+            activeModeKey !== modeKey ||
+            activeTrackLoopCount >= activeTrack.loopsBeforeRotate;
+
+        if (shouldRotateTrack) {
+            const hadTrack = !!activeTrack;
+            activateNextTrack(modeKey);
+            if (hadTrack) {
+                bridgeDuration = playBridgePattern(time, activeTrack);
+            }
         }
-        
+
+        const { melody: melodyPatterns, bass: bassPatterns } = getPatternsForMode(modeKey);
+        const melodyPatternIndex = pickNonRepeatingPattern(activeTrack.melodyPatternIndices, lastMelodyPattern);
+        const bassPatternIndex = pickNonRepeatingPattern(activeTrack.bassPatternIndices, lastBassPattern);
         lastMelodyPattern = melodyPatternIndex;
-        
-        // Choose a different bass pattern than the last one
-        let bassPatternIndex;
-        do {
-            bassPatternIndex = Math.floor(Math.random() * bassPatterns.length);
-        } while (bassPatternIndex === lastBassPattern && bassPatterns.length > 1);
         lastBassPattern = bassPatternIndex;
-        
+
         const selectedMelody = melodyPatterns[melodyPatternIndex];
         const selectedBass = bassPatterns[bassPatternIndex];
-        
-        // Add very slight tempo variation to keep it natural
-        const tempoVariation = 1 + (Math.random() * 0.04 - 0.02); // ±2% variation
-        
-        // Adjust starting time for bridge if needed
+        const tempoVariation = 1 + (Math.random() * activeTrack.tempoSwing * 2 - activeTrack.tempoSwing);
         const startTime = time + bridgeDuration;
-        
-        // Play melody
+
         let totalDuration = 0;
         let currentTime = startTime;
         for (let i = 0; i < selectedMelody.length; i++) {
             const note = selectedMelody[i];
             const duration = note.duration * tempoVariation;
-            
-            // Add occasional chords for richness (every 4th note with 40% chance)
-            const addChord = i % 4 === 0 && Math.random() < 0.4;
-            
-            // Melody note - slightly louder for peppy feel
-            playNote(note.note, currentTime, duration, note.type, 0.13);
-            
-            // Add a chord if selected
+            const addChord =
+                note.note !== NOTES.REST &&
+                i % 4 === 0 &&
+                Math.random() < activeTrack.chordChance;
+
+            playNote(note.note, currentTime, duration, note.type, activeTrack.melodyGain);
+
             if (addChord) {
-                // Perfect fifth above the melody note
-                const fifthAbove = note.note * 1.5;
-                playNote(fifthAbove, currentTime, duration, note.type, 0.07, true);
-                
-                // Octave above the melody note (occasionally)
+                playNote(note.note * 1.5, currentTime, duration, note.type, activeTrack.melodyGain * 0.55, true);
                 if (Math.random() < 0.5) {
-                    const octaveAbove = note.note * 2;
-                    playNote(octaveAbove, currentTime, duration, note.type, 0.05, true);
+                    playNote(note.note * 2, currentTime, duration, note.type, activeTrack.melodyGain * 0.38, true);
                 }
             }
-            
+
             currentTime += duration;
             totalDuration += duration;
         }
-        
-        // Play bass accompaniment (starts at the same time as melody)
+
         currentTime = startTime;
         for (let i = 0; i < selectedBass.length; i++) {
             const note = selectedBass[i];
             const duration = note.duration * tempoVariation;
-            
-            playNote(note.note, currentTime, duration, note.type, 0.18);
+
+            playNote(note.note, currentTime, duration, note.type, activeTrack.bassGain);
             currentTime += duration;
         }
-        
-        // Schedule the next loop - ensure we don't create a gap
+
+        activeTrackLoopCount++;
+
         const nextLoopTime = startTime + totalDuration;
-        loopId = setTimeout(() => scheduleLoop(audioCtx.currentTime), 
-                           (nextLoopTime - audioCtx.currentTime) * 1000 - 50); // Start 50ms before end for smoothness
-        
+        loopId = setTimeout(
+            () => scheduleLoop(audioCtx.currentTime),
+            Math.max(0, (nextLoopTime - audioCtx.currentTime) * 1000 - 50)
+        );
+
         return totalDuration;
     }
-    
-    function createNoiseBuffer(audioCtx) {
-        const bufferSize = audioCtx.sampleRate * 2; // 2 seconds of noise
-        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        
-        return buffer;
-    }
-    
+
     return {
         play: function() {
             if (!audioCtx || !gameState.soundEnabled || loopId) return;
-            
-            // Reset pattern index
-            currentPatternIndex = 0;
-            
-            // Resume audio context if it's suspended
+
+            musicMasterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+            musicMasterGain.gain.setValueAtTime(0.9, audioCtx.currentTime);
+
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume().then(() => {
                     scheduleLoop(audioCtx.currentTime);
@@ -1137,36 +1390,51 @@ function createLoopingMusic(audioCtx) {
                 scheduleLoop(audioCtx.currentTime);
             }
         },
-        stop: function() {
+        stop: function(preserveTrack = false) {
             if (loopId) {
                 clearTimeout(loopId);
                 loopId = null;
             }
-            
-            // Create smooth fade-out effect instead of abrupt stop
-            if (audioCtx && audioCtx.state === 'running') {
-                const fadeOutTime = 1.0; // 1 second fade out
-                
-                // Create a gain node for fading out all sound
-                if (!fadeOutGain) {
-                    fadeOutGain = audioCtx.createGain();
-                    fadeOutGain.gain.value = 1;
-                    fadeOutGain.connect(audioCtx.destination);
-                }
-                
-                // Schedule the fade-out
-                const now = audioCtx.currentTime;
-                fadeOutGain.gain.setValueAtTime(fadeOutGain.gain.value, now);
-                fadeOutGain.gain.exponentialRampToValueAtTime(0.001, now + fadeOutTime);
-                
-                // Reset after fade completes
-                setTimeout(() => {
-                    if (fadeOutGain) {
-                        fadeOutGain.disconnect();
-                        fadeOutGain = null;
-                    }
-                }, fadeOutTime * 1000);
+
+            if (!preserveTrack) {
+                activeTrack = null;
+                activeTrackLoopCount = 0;
+                lastMelodyPattern = -1;
+                lastBassPattern = -1;
             }
+
+            if (audioCtx && audioCtx.state === 'running') {
+                const now = audioCtx.currentTime;
+                musicMasterGain.gain.cancelScheduledValues(now);
+                musicMasterGain.gain.setValueAtTime(Math.max(musicMasterGain.gain.value, 0.001), now);
+                musicMasterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+            }
+        },
+        refreshMode: function() {
+            if (!loopId) return;
+
+            clearTimeout(loopId);
+            loopId = null;
+            activeTrack = null;
+            activeTrackLoopCount = 0;
+            lastMelodyPattern = -1;
+            lastBassPattern = -1;
+
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().then(() => {
+                    scheduleLoop(audioCtx.currentTime + 0.02);
+                });
+            } else {
+                scheduleLoop(audioCtx.currentTime + 0.02);
+            }
+        },
+        getDebugState: function() {
+            return {
+                modeKey: activeModeKey,
+                trackName: activeTrack ? activeTrack.name : null,
+                trackLoopCount: activeTrackLoopCount,
+                queued: !!loopId
+            };
         }
     };
 }
@@ -1186,7 +1454,7 @@ function toggleSound() {
     if (gameState.soundEnabled && gameState.running && !gameState.paused && sounds.backgroundMusic) {
         sounds.backgroundMusic.play();
     } else if (sounds.backgroundMusic) {
-        sounds.backgroundMusic.stop();
+        sounds.backgroundMusic.stop(true);
     }
 }
 
@@ -1206,6 +1474,16 @@ function toggleDayNightMode(isDayMode) {
     updateModeButtons();
     createSprites();
     drawGame();
+
+    if (
+        gameState.running &&
+        !gameState.paused &&
+        gameState.soundEnabled &&
+        sounds.backgroundMusic &&
+        typeof sounds.backgroundMusic.refreshMode === 'function'
+    ) {
+        sounds.backgroundMusic.refreshMode();
+    }
 }
 
 function updateModeButtons() {
@@ -2490,7 +2768,7 @@ function togglePause() {
     
     // Handle music when pausing/unpausing
     if (gameState.paused && sounds.backgroundMusic) {
-        sounds.backgroundMusic.stop();
+        sounds.backgroundMusic.stop(true);
     } else if (gameState.soundEnabled && sounds.backgroundMusic) {
         sounds.backgroundMusic.play();
         
