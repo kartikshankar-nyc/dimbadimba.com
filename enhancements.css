@@ -154,9 +154,21 @@
     color: #ffd700;
 }
 
+/* Game over screen can scroll instead of squeezing its children together */
+#game-over.overlay {
+    overflow-y: auto;
+}
+
+#game-over.overlay > * {
+    flex-shrink: 0;
+}
+
 /* Leaderboard on the game over screen */
 .leaderboard-container {
     max-width: 380px;
+    max-height: 160px;
+    overflow-y: auto;
+    flex-shrink: 0;
     margin: 8px auto;
     color: #f3f7ff;
 }
