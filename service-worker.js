@@ -4,7 +4,7 @@
  */
 
 const CACHE_VERSION = 2;
-const DEPLOY_TIMESTAMP = '1783246118657';
+const DEPLOY_TIMESTAMP = '1783463775600';
 const CACHE_NAME = `dimbadimba-cache-v${CACHE_VERSION}-${DEPLOY_TIMESTAMP}`;
 
 // Debug logging - shows in the service worker console in the browser
