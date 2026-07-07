@@ -124,6 +124,95 @@ const DIFFICULTY_SETTINGS = {
     }
 };
 
+// Game modes
+const GAME_MODES = {
+    ENDLESS: 'endless',
+    TIME_ATTACK: 'timeAttack',
+    ENDLESS_PLUS: 'endlessPlus'
+};
+
+const TIME_ATTACK_CONFIG = {
+    duration: 60000,          // 60 second runs
+    bonusTimePerCoin: 1000,
+    bonusTimePerPowerup: 3000
+};
+
+const ENDLESS_PLUS_CONFIG = {
+    lives: 1,                       // one hit ends the run
+    multiplierIncreaseRate: 0.1,    // extra score multiplier gained...
+    multiplierIncreaseInterval: 10000 // ...every 10 seconds survived
+};
+
+// Flying obstacle settings. Flyers always stay above a grounded player so
+// they punish mistimed jumps instead of creating unavoidable hits.
+const FLYING_OBSTACLE_CONFIG = {
+    width: 46,
+    height: 34,
+    minScore: 150,        // no flyers until the run warms up
+    minInterval: 3500,
+    maxInterval: 7000,
+    speedFactor: 1.15,    // slightly faster than ground obstacles
+    sineAmplitude: 36,
+    sineFrequency: 0.09,
+    diveSpeed: 1.1,
+    groundClearance: 25,  // min gap between flyer bottom and a grounded player
+    passPoints: 15,
+    patterns: ['sine_wave', 'straight', 'dive_bomb']
+};
+
+// Milestone stages reached by score
+const MILESTONES = [
+    { score: 100, name: 'Forest', tint: 'rgba(39, 174, 96, 0.10)', speedBonus: 0 },
+    { score: 300, name: 'Desert', tint: 'rgba(230, 126, 34, 0.12)', speedBonus: 0.5 },
+    { score: 600, name: 'Ice Land', tint: 'rgba(52, 152, 219, 0.12)', speedBonus: 1 },
+    { score: 1000, name: 'Volcano', tint: 'rgba(231, 76, 60, 0.14)', speedBonus: 1.5 },
+    { score: 1500, name: 'Space', tint: 'rgba(155, 89, 182, 0.16)', speedBonus: 2 }
+];
+
+// Achievement definitions (unlock state persisted in localStorage)
+const ACHIEVEMENTS = {
+    first_coin: { name: 'Coin Collector', desc: 'Collect your first coin', icon: '🪙' },
+    score_100: { name: 'Centurion', desc: 'Score 100 points', icon: '💯' },
+    score_500: { name: 'High Roller', desc: 'Score 500 points', icon: '🎰' },
+    score_1000: { name: 'Legend', desc: 'Score 1000 points', icon: '👑' },
+    combo_10: { name: 'Combo King', desc: 'Get a 10x combo', icon: '🔥' },
+    survive_60: { name: 'Survivor', desc: 'Survive 60 seconds', icon: '⏱️' },
+    no_damage: { name: 'Untouchable', desc: 'Score 500 without taking damage', icon: '🛡️' },
+    collect_all_powerups: { name: 'Power Player', desc: 'Collect all power-up types in one run', icon: '⚡' },
+    night_master: { name: 'Night Owl', desc: 'Score 500 in night mode', icon: '🦉' },
+    hard_survivor: { name: 'Hardcore', desc: 'Score 200 in hard mode', icon: '💀' }
+};
+
+// Daily challenge templates. Targets are derived deterministically from the date.
+const DAILY_CHALLENGE_TYPES = [
+    { id: 'score_challenge', desc: 'Score {target} points', minTarget: 200, targetRange: 300, metric: 'score' },
+    { id: 'coin_challenge', desc: 'Collect {target} coins', minTarget: 10, targetRange: 20, metric: 'coins' },
+    { id: 'survival_challenge', desc: 'Survive {target} seconds', minTarget: 30, targetRange: 60, metric: 'seconds' },
+    { id: 'combo_challenge', desc: 'Get a {target}x combo', minTarget: 5, targetRange: 10, metric: 'combo' },
+    { id: 'powerup_challenge', desc: 'Collect {target} power-ups', minTarget: 3, targetRange: 5, metric: 'powerups' }
+];
+const DAILY_CHALLENGE_REWARD = 250;
+
+// Particle burst presets
+const PARTICLE_EFFECTS = {
+    coinCollect: { count: 10, color: { r: 241, g: 196, b: 15 }, size: 5, lifetime: 600 },
+    powerupCollect: { count: 15, color: { r: 52, g: 152, b: 219 }, size: 7, lifetime: 800 },
+    hit: { count: 20, color: { r: 231, g: 76, b: 60 }, size: 8, lifetime: 700 },
+    milestone: { count: 40, color: 'rainbow', size: 9, lifetime: 1200 }
+};
+
+// Local leaderboard
+const LEADERBOARD_MAX_ENTRIES = 10;
+const LEADERBOARD_STORAGE_KEY = 'pixelRunnerLeaderboard';
+const ACHIEVEMENTS_STORAGE_KEY = 'pixelRunnerAchievements';
+const DAILY_CHALLENGE_STORAGE_KEY = 'pixelRunnerDailyChallenge';
+const GAME_MODE_STORAGE_KEY = 'pixelRunnerGameMode';
+const GHOST_STORAGE_PREFIX = 'pixelRunnerGhost_';
+
+// Ghost run recording settings
+const GHOST_RECORD_INTERVAL = 100; // ms between recorded frames
+const GHOST_MAX_FRAMES = 3600;     // cap stored frames (~6 minutes)
+
 // Game variables
 let canvas, ctx;
 let gameState = {
@@ -193,7 +282,45 @@ let gameState = {
     // Near-miss tracking
     nearMissCount: 0,
     checkedObstacleIds: new Set(), // Track obstacles checked for near-miss
-    airJumpsRemaining: 0
+    airJumpsRemaining: 0,
+    // Game mode state
+    gameMode: GAME_MODES.ENDLESS,
+    timeAttack: {
+        timeRemaining: TIME_ATTACK_CONFIG.duration
+    },
+    endlessPlus: {
+        survivalMultiplier: 1,
+        elapsedSinceIncrease: 0
+    },
+    // Flying obstacles (separate from ground obstacles)
+    flyingObstacles: [],
+    timeSinceLastFlyingObstacle: 0,
+    flyingObstacleInterval: FLYING_OBSTACLE_CONFIG.maxInterval,
+    // Milestone stage progression
+    currentMilestoneIndex: -1,
+    milestoneSpeedBonus: 0,
+    // Screen shake state
+    screenShake: {
+        intensity: 0,
+        duration: 0,
+        offsetX: 0,
+        offsetY: 0
+    },
+    // Per-run stats used by achievements and daily challenges
+    runStats: {
+        coinsCollected: 0,
+        powerupsCollected: 0,
+        powerupTypesCollected: new Set(),
+        damageTaken: 0,
+        elapsedTime: 0
+    },
+    // Ghost run (best-run replay)
+    ghost: {
+        recording: [],
+        recordTimer: 0,
+        playback: null,
+        playbackScore: 0
+    }
 };
 
 // UI elements
@@ -219,6 +346,7 @@ const sprites = {
         night: []
     },
     obstacles: [],
+    flyingObstacles: [], // Animated flying obstacle frames
     powerups: {} // Object to store power-up sprites by type
 };
 
@@ -410,6 +538,19 @@ function initializeGame() {
         gameState.difficulty = difficultyPref;
         updateDifficultyButtons();
     }
+    
+    // Load game mode preference from local storage
+    const gameModePref = localStorage.getItem(GAME_MODE_STORAGE_KEY);
+    if (gameModePref !== null && Object.values(GAME_MODES).includes(gameModePref)) {
+        gameState.gameMode = gameModePref;
+    }
+    updateGameModeButtons();
+    
+    // Load progression systems
+    loadAchievements();
+    renderAchievementsPanel();
+    loadDailyChallenge();
+    renderLeaderboard();
     
     // Initialize lives counter display
     updateLivesDisplay();
@@ -1292,6 +1433,53 @@ function createLoopingMusic(audioCtx) {
         }
     }
 
+    // Score-driven rhythm layers over the base melody/bass loop
+    function schedulePercussionLayer(startTime, totalDuration) {
+        if (typeof musicLayerState === 'undefined') return;
+        if (!musicLayerState.percussion && !musicLayerState.kick) return;
+
+        try {
+            const tickInterval = 0.16;
+            for (let t = 0; t < totalDuration; t += tickInterval) {
+                const time = startTime + t;
+                const beatIndex = Math.round(t / tickInterval);
+
+                if (musicLayerState.percussion) {
+                    // Hi-hat style tick on every other beat
+                    if (beatIndex % 2 === 0) {
+                        const osc = audioCtx.createOscillator();
+                        const gainNode = audioCtx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(6200, time);
+                        gainNode.gain.setValueAtTime(0.03, time);
+                        gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+                        osc.connect(gainNode);
+                        gainNode.connect(musicMasterGain);
+                        osc.start(time);
+                        osc.stop(time + 0.05);
+                    }
+                }
+
+                if (musicLayerState.kick && beatIndex % 4 === 0) {
+                    // Low kick pulse on downbeats
+                    const kick = audioCtx.createOscillator();
+                    const kickGain = audioCtx.createGain();
+                    kick.type = 'sine';
+                    kick.frequency.setValueAtTime(120, time);
+                    kick.frequency.exponentialRampToValueAtTime(45, time + 0.12);
+                    kickGain.gain.setValueAtTime(0.16, time);
+                    kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+                    kick.connect(kickGain);
+                    kickGain.connect(musicMasterGain);
+                    kick.start(time);
+                    kick.stop(time + 0.15);
+                }
+            }
+        } catch (e) {
+            console.error('Error scheduling percussion layer:', e);
+        }
+    }
+
     function playBridgePattern(time, track) {
         const bridge = track?.bridge || [];
         let currentTime = time;
@@ -1363,6 +1551,9 @@ function createLoopingMusic(audioCtx) {
             playNote(note.note, currentTime, duration, note.type, activeTrack.bassGain);
             currentTime += duration;
         }
+
+        // Dynamic layers: percussion ticks (score >= 100) and kick pulses (score >= 300)
+        schedulePercussionLayer(startTime, totalDuration);
 
         activeTrackLoopCount++;
 
@@ -1530,6 +1721,29 @@ function createSprites() {
     
     // Keep backward compatibility
     sprites.obstacle = sprites.obstacles[0];
+    
+    // Flying obstacle sprites (two frames for wing flap animation)
+    const flyerColor = gameState.dayMode ? '#8e44ad' : '#f39c12';
+    sprites.flyingObstacles = [
+        // Wings up
+        createPixelArt([
+            [1,0,0,0,0,0,0,0,0,0,1],
+            [1,1,0,0,0,0,0,0,0,1,1],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,0,0,1,1,1,1,1,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0]
+        ], flyerColor, 4),
+        // Wings down
+        createPixelArt([
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [1,1,0,0,0,0,0,0,0,1,1],
+            [1,0,0,0,0,0,0,0,0,0,1]
+        ], flyerColor, 4)
+    ];
     
     // Coin sprite (yellow circle)
     sprites.coin = createPixelArt([
@@ -2168,7 +2382,8 @@ function setupEventListeners() {
     // Keyboard events
     window.addEventListener('keydown', function(e) {
         if ((e.code === 'Space' || e.key === ' ') && gameState.running) {
-            if (!gameState.dimbadimba.jumping) {
+            // Allow air jumps (double jump) when the player has them available
+            if (!gameState.dimbadimba.jumping || gameState.airJumpsRemaining > 0) {
                 jump();
                 e.preventDefault();
             }
@@ -2189,7 +2404,7 @@ function setupEventListeners() {
             } else {
                 startGame();
             }
-        } else if (gameState.running && !gameState.dimbadimba.jumping) {
+        } else if (gameState.running && (!gameState.dimbadimba.jumping || gameState.airJumpsRemaining > 0)) {
             jump();
         }
     });
@@ -2223,6 +2438,40 @@ function setupEventListeners() {
             gameState.difficulty = 'hard';
             updateDifficultyButtons();
             localStorage.setItem('pixelRunnerDifficulty', gameState.difficulty);
+        });
+    }
+    
+    // Game mode selector buttons
+    const endlessModeBtn = document.getElementById('endlessModeBtn');
+    const timeAttackModeBtn = document.getElementById('timeAttackModeBtn');
+    const endlessPlusModeBtn = document.getElementById('endlessPlusModeBtn');
+    
+    if (endlessModeBtn) {
+        endlessModeBtn.addEventListener('click', function() {
+            setGameMode(GAME_MODES.ENDLESS);
+        });
+    }
+    
+    if (timeAttackModeBtn) {
+        timeAttackModeBtn.addEventListener('click', function() {
+            setGameMode(GAME_MODES.TIME_ATTACK);
+        });
+    }
+    
+    if (endlessPlusModeBtn) {
+        endlessPlusModeBtn.addEventListener('click', function() {
+            setGameMode(GAME_MODES.ENDLESS_PLUS);
+        });
+    }
+    
+    // Achievements panel toggle
+    const achievementsToggleBtn = document.getElementById('achievementsToggleBtn');
+    const achievementsPanel = document.getElementById('achievementsPanel');
+    
+    if (achievementsToggleBtn && achievementsPanel) {
+        achievementsToggleBtn.addEventListener('click', function() {
+            renderAchievementsPanel();
+            achievementsPanel.classList.toggle('hidden');
         });
     }
 }
@@ -2623,6 +2872,7 @@ function startGame() {
     
     resetGame();
     gameState.running = true;
+    gameOverProcessed = false;
     
     if (startScreen) {
         startScreen.classList.add('hidden');
@@ -2673,6 +2923,7 @@ function restartGame() {
     
     resetGame();
     gameState.running = true;
+    gameOverProcessed = false;
     gameOverScreen.classList.add('hidden');
     
     // Play background music if enabled
@@ -2704,10 +2955,13 @@ function resetGame() {
     // Reset to initial values based on difficulty (will be properly set by applyDifficultySettings)
     gameState.speed = INITIAL_SPEED;
     gameState.obstacles = [];
+    gameState.flyingObstacles = [];
+    gameState.timeSinceLastFlyingObstacle = 0;
+    gameState.flyingObstacleInterval = FLYING_OBSTACLE_CONFIG.maxInterval;
     gameState.coins = [];
     gameState.powerups = [];
     gameState.pointIndicators = []; // Clear any point indicators
-    gameState.particles = []; // Clear dust/effect particles
+    releaseAllParticles(); // Clear dust/effect particles back into the pool
     gameState.activePowerups = {};
     gameState.timeSinceLastObstacle = 0;
     gameState.timeSinceLastCoin = 0;
@@ -2729,6 +2983,35 @@ function resetGame() {
     gameState.airJumpsRemaining = 0;
     obstacleIdCounter = 0; // Reset obstacle ID counter
     
+    // Reset milestone stage progression
+    gameState.currentMilestoneIndex = -1;
+    gameState.milestoneSpeedBonus = 0;
+    
+    // Reset screen shake
+    gameState.screenShake.intensity = 0;
+    gameState.screenShake.duration = 0;
+    gameState.screenShake.offsetX = 0;
+    gameState.screenShake.offsetY = 0;
+    
+    // Reset per-run stats
+    gameState.runStats = {
+        coinsCollected: 0,
+        powerupsCollected: 0,
+        powerupTypesCollected: new Set(),
+        damageTaken: 0,
+        elapsedTime: 0
+    };
+    
+    // Reset mode-specific state
+    gameState.timeAttack.timeRemaining = TIME_ATTACK_CONFIG.duration;
+    gameState.endlessPlus.survivalMultiplier = 1;
+    gameState.endlessPlus.elapsedSinceIncrease = 0;
+    
+    // Reset ghost recording and load the best-run ghost for this mode
+    gameState.ghost.recording = [];
+    gameState.ghost.recordTimer = 0;
+    loadGhostForCurrentMode();
+    
     // Reset score to 0
     gameState.score = 0;
     
@@ -2747,7 +3030,10 @@ function resetGame() {
     // Reset to difficulty settings
     applyDifficultySettings();
     
-    gameState.lives = INITIAL_LIVES;
+    // Endless+ runs on a single life; other modes use the standard count
+    gameState.lives = gameState.gameMode === GAME_MODES.ENDLESS_PLUS
+        ? ENDLESS_PLUS_CONFIG.lives
+        : INITIAL_LIVES;
     gameState.isInvincible = false;
     gameState.invincibilityTimer = 0;
     updateLivesDisplay();
@@ -2992,7 +3278,7 @@ function updateObstacles(deltaTime) {
             gameState.checkedObstacleIds.delete(obstacle.id);
             gameState.obstacles.splice(i, 1);
             // Award points for passing an obstacle
-            gameState.score += 10 * gameState.scoreMultiplier;
+            gameState.score += Math.floor(10 * getTotalScoreMultiplier());
             updateScore();
             
             // Chance to spawn a power-up when obstacle is passed
@@ -3039,10 +3325,118 @@ function spawnObstacle() {
     });
 }
 
-// Function to get current game speed (considering power-ups)
+// ========== FLYING OBSTACLES ==========
+
+// Vertical band where flyers are allowed to travel. The bottom of the band is
+// kept above a grounded player's head so staying grounded is always safe.
+function getFlyingObstacleBounds() {
+    const groundTop = GAME_HEIGHT - GROUND_HEIGHT;
+    const standingPlayerTop = groundTop - PLAYER_HEIGHT;
+    const maxY = standingPlayerTop - FLYING_OBSTACLE_CONFIG.groundClearance - FLYING_OBSTACLE_CONFIG.height;
+    const minY = Math.max(PLAYER_TOP_SAFE_MARGIN, GAME_HEIGHT * 0.18);
+    return { minY: minY, maxY: Math.max(minY, maxY) };
+}
+
+function spawnFlyingObstacle() {
+    gameState.timeSinceLastFlyingObstacle = 0;
+    gameState.flyingObstacleInterval = FLYING_OBSTACLE_CONFIG.minInterval +
+        Math.random() * (FLYING_OBSTACLE_CONFIG.maxInterval - FLYING_OBSTACLE_CONFIG.minInterval);
+    
+    const bounds = getFlyingObstacleBounds();
+    const pattern = FLYING_OBSTACLE_CONFIG.patterns[
+        Math.floor(Math.random() * FLYING_OBSTACLE_CONFIG.patterns.length)
+    ];
+    
+    // Dive bombers start higher so they have room to descend
+    let baseY = bounds.minY + Math.random() * (bounds.maxY - bounds.minY);
+    if (pattern === 'dive_bomb') {
+        baseY = bounds.minY + Math.random() * Math.max(1, (bounds.maxY - bounds.minY) * 0.4);
+    }
+    
+    gameState.flyingObstacles.push({
+        id: ++obstacleIdCounter,
+        x: GAME_WIDTH,
+        y: baseY,
+        baseY: baseY,
+        width: FLYING_OBSTACLE_CONFIG.width,
+        height: FLYING_OBSTACLE_CONFIG.height,
+        pattern: pattern,
+        phase: Math.random() * Math.PI * 2,
+        frameTimer: 0,
+        frameIndex: 0
+    });
+}
+
+function updateFlyingObstacles(deltaTime) {
+    // Spawn logic - flyers appear once the run reaches the score threshold
+    if (gameState.score >= FLYING_OBSTACLE_CONFIG.minScore) {
+        gameState.timeSinceLastFlyingObstacle += deltaTime;
+        if (gameState.timeSinceLastFlyingObstacle > gameState.flyingObstacleInterval) {
+            spawnFlyingObstacle();
+        }
+    }
+    
+    const bounds = getFlyingObstacleBounds();
+    
+    for (let i = gameState.flyingObstacles.length - 1; i >= 0; i--) {
+        const flyer = gameState.flyingObstacles[i];
+        
+        flyer.x -= getCurrentGameSpeed() * FLYING_OBSTACLE_CONFIG.speedFactor;
+        flyer.phase += FLYING_OBSTACLE_CONFIG.sineFrequency;
+        
+        switch (flyer.pattern) {
+            case 'sine_wave':
+                flyer.y = flyer.baseY + Math.sin(flyer.phase) * FLYING_OBSTACLE_CONFIG.sineAmplitude;
+                break;
+            case 'dive_bomb':
+                // Glide downward but never below the safe band
+                flyer.y = Math.min(flyer.y + FLYING_OBSTACLE_CONFIG.diveSpeed, bounds.maxY);
+                break;
+            // 'straight' keeps its spawn height
+        }
+        
+        // Clamp inside the safe travel band
+        flyer.y = Math.max(bounds.minY, Math.min(flyer.y, bounds.maxY));
+        
+        // Wing flap animation
+        flyer.frameTimer += deltaTime;
+        if (flyer.frameTimer > 140) {
+            flyer.frameTimer = 0;
+            flyer.frameIndex = (flyer.frameIndex + 1) % 2;
+        }
+        
+        // Remove flyers that are off screen and award pass points
+        if (flyer.x < -flyer.width * 1.5) {
+            gameState.flyingObstacles.splice(i, 1);
+            gameState.score += Math.floor(FLYING_OBSTACLE_CONFIG.passPoints * getTotalScoreMultiplier());
+            updateScore();
+        }
+    }
+}
+
+function drawFlyingObstacles() {
+    if (!sprites.flyingObstacles || sprites.flyingObstacles.length === 0) return;
+    
+    gameState.flyingObstacles.forEach(flyer => {
+        const sprite = sprites.flyingObstacles[flyer.frameIndex % sprites.flyingObstacles.length];
+        if (sprite) {
+            ctx.drawImage(sprite, flyer.x, flyer.y, flyer.width, flyer.height);
+        }
+    });
+}
+
+// Function to get current game speed (considering power-ups and milestone stage bonus)
 function getCurrentGameSpeed() {
     const speedBoostMultiplier = gameState.activePowerups[POWERUP_TYPES.SPEED] ? gameState.speedBoostMultiplier : 1;
-    return gameState.speed * speedBoostMultiplier * getJumpTravelMultiplier();
+    return (gameState.speed + gameState.milestoneSpeedBonus) * speedBoostMultiplier * getJumpTravelMultiplier();
+}
+
+// Total score multiplier: double-score power-up times the Endless+ survival bonus
+function getTotalScoreMultiplier() {
+    const survivalMultiplier = gameState.gameMode === GAME_MODES.ENDLESS_PLUS
+        ? gameState.endlessPlus.survivalMultiplier
+        : 1;
+    return gameState.scoreMultiplier * survivalMultiplier;
 }
 
 function updateCoins(deltaTime) {
@@ -3158,8 +3552,11 @@ function checkCollisions() {
                 deactivatePowerup(POWERUP_TYPES.SHIELD);
                 
                 // Add points for shield save
-                gameState.score += 25 * gameState.scoreMultiplier;
+                gameState.score += Math.floor(25 * getTotalScoreMultiplier());
                 updateScore();
+                
+                // Small screen shake for shield break
+                triggerScreenShake(5, 200);
                 
                 break;
             }
@@ -3170,9 +3567,43 @@ function checkCollisions() {
         }
     }
     
+    // Check for collisions with flying obstacles
+    checkFlyingObstacleCollisions();
+    
     // Rest of collision checks for coins and powerups (unchanged)
     checkCoinCollisions();
     checkPowerupCollisions();
+}
+
+// Collision handling for flying obstacles (mirrors ground obstacle rules)
+function checkFlyingObstacleCollisions() {
+    if (gameState.isInvincible || !gameState.running) return;
+    
+    for (let i = gameState.flyingObstacles.length - 1; i >= 0; i--) {
+        const flyer = gameState.flyingObstacles[i];
+        
+        const adjustedPlayerHitbox = {
+            x: gameState.dimbadimba.x + 10,
+            y: gameState.dimbadimba.y + 5,
+            width: gameState.dimbadimba.width - 20,
+            height: gameState.dimbadimba.height - 10
+        };
+        
+        if (detectCollision(adjustedPlayerHitbox, flyer)) {
+            if (gameState.activePowerups[POWERUP_TYPES.SHIELD]) {
+                playSound('powerup');
+                gameState.flyingObstacles.splice(i, 1);
+                deactivatePowerup(POWERUP_TYPES.SHIELD);
+                gameState.score += Math.floor(25 * getTotalScoreMultiplier());
+                updateScore();
+                triggerScreenShake(5, 200);
+                break;
+            }
+            
+            handleCollision();
+            break;
+        }
+    }
 }
 
 // Fix drawing function for proper invincibility effect
@@ -3180,11 +3611,18 @@ function drawGame() {
     // Clear canvas
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     
+    // Apply screen shake offset to the whole scene
+    ctx.save();
+    ctx.translate(gameState.screenShake.offsetX, gameState.screenShake.offsetY);
+    
     // Draw sky background
     drawBackground();
     
     // Draw ground
     drawGround();
+    
+    // Draw best-run ghost behind the live player
+    drawGhost();
     
     // Draw obstacles
     gameState.obstacles.forEach(obstacle => {
@@ -3196,6 +3634,9 @@ function drawGame() {
             obstacle.height
         );
     });
+    
+    // Draw flying obstacles
+    drawFlyingObstacles();
     
     // Draw coins
     gameState.coins.forEach(coin => {
@@ -3400,6 +3841,21 @@ function drawGame() {
     // Draw combo counter
     drawComboCounter();
     
+    // End screen shake translation
+    ctx.restore();
+    
+    // Milestone stage tint over the whole scene
+    const currentMilestone = getCurrentMilestone();
+    if (currentMilestone && currentMilestone.tint) {
+        ctx.save();
+        ctx.fillStyle = currentMilestone.tint;
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.restore();
+    }
+    
+    // Mode-specific HUD (time attack timer, endless+ multiplier, stage name)
+    drawModeHUD();
+    
     // Draw "paused" text if game is paused
     if (gameState.paused && gameState.running) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -3522,12 +3978,14 @@ function animationLoop(timestamp = 0) {
         // Update game elements
         updatePlayer(deltaTime);
         updateObstacles(deltaTime);
+        updateFlyingObstacles(deltaTime); // Update aerial obstacles
         updateCoins(deltaTime);
         updatePowerups(deltaTime);
         updateSmoke(deltaTime); // Update smoke particles
         updateParticles(deltaTime); // Update dust/effect particles
         updatePointIndicators(deltaTime); // Update point indicators
         updateCombo(performance.now()); // Update combo system timing
+        updateScreenShake(deltaTime); // Update screen shake effect
         updateBackground();
         checkCollisions();
         
@@ -3535,6 +3993,21 @@ function animationLoop(timestamp = 0) {
         gameState.obstacles.forEach(obstacle => {
             checkNearMiss(obstacle);
         });
+        
+        // Track per-run time for achievements/challenges and mode logic
+        gameState.runStats.elapsedTime += deltaTime;
+        updateGameMode(deltaTime);
+        
+        // Progression systems
+        checkMilestone();
+        checkAchievements();
+        updateDailyChallengeProgress();
+        
+        // Ghost run: record current run and advance playback
+        updateGhostRecording(deltaTime);
+        
+        // Dynamic music layers respond to score
+        updateMusicLayers();
         
         // Increase game speed over time
         gameState.speed += SPEED_INCREMENT * deltaTime;
@@ -3567,7 +4040,7 @@ function setupTouchControls() {
             } else {
                 startGame();
             }
-        } else if (gameState.running && !gameState.dimbadimba.jumping) {
+        } else if (gameState.running && (!gameState.dimbadimba.jumping || gameState.airJumpsRemaining > 0)) {
             jump();
         }
     });
@@ -4633,6 +5106,17 @@ function handleCollision() {
     // Reset combo on getting hit
     resetCombo();
     
+    // Track damage for achievements/challenges
+    gameState.runStats.damageTaken++;
+    
+    // Visual feedback: hit particles and screen shake
+    createParticleBurst(
+        gameState.dimbadimba.x + gameState.dimbadimba.width / 2,
+        gameState.dimbadimba.y + gameState.dimbadimba.height / 2,
+        'hit'
+    );
+    triggerScreenShake(8, 300);
+    
     // Update life display
     updateLivesDisplay();
     
@@ -4673,11 +5157,18 @@ function checkCoinCollisions() {
             
             const specialConfig = coin.specialType ? SPECIAL_COIN_CONFIG[coin.specialType] : null;
             const basePoints = specialConfig ? specialConfig.points : 50;
-            const pointsEarned = Math.floor(basePoints * gameState.scoreMultiplier * gameState.combo.multiplier);
+            const pointsEarned = Math.floor(basePoints * getTotalScoreMultiplier() * gameState.combo.multiplier);
             
             // Add to score
             gameState.score += pointsEarned;
             updateScore();
+            
+            // Track coin for achievements/challenges and reward time attack bonus time
+            gameState.runStats.coinsCollected++;
+            addBonusTime(TIME_ATTACK_CONFIG.bonusTimePerCoin);
+            
+            // Coin sparkle burst
+            createParticleBurst(coinX, coinY + coin.height / 2, 'coinCollect');
             
             // Create visual indicator at coin position
             createPointIndicator(coinX, coinY, pointsEarned);
@@ -4706,6 +5197,17 @@ function checkPowerupCollisions() {
         if (detectCollision(gameState.dimbadimba, powerup)) {
             // Collect the power-up
             activatePowerup(powerup.type);
+            
+            // Track for achievements/challenges, celebrate, and reward bonus time
+            gameState.runStats.powerupsCollected++;
+            gameState.runStats.powerupTypesCollected.add(powerup.type);
+            createParticleBurst(
+                powerup.x + powerup.width / 2,
+                powerup.y + powerup.height / 2,
+                'powerupCollect'
+            );
+            addBonusTime(TIME_ATTACK_CONFIG.bonusTimePerPowerup);
+            
             gameState.powerups.splice(i, 1);
         }
     }
@@ -4942,7 +5444,7 @@ function checkNearMiss(obstacle) {
             increaseCombo();
             
             // Award points
-            const nearMissPoints = NEAR_MISS_BASE_POINTS * gameState.scoreMultiplier * gameState.combo.multiplier;
+            const nearMissPoints = NEAR_MISS_BASE_POINTS * getTotalScoreMultiplier() * gameState.combo.multiplier;
             gameState.score += Math.floor(nearMissPoints);
             updateScore();
             
@@ -4973,6 +5475,56 @@ function createNearMissIndicator(x, y) {
 
 // ========== PARTICLE SYSTEM ==========
 
+// Simple object pool to avoid churning particle allocations every burst
+class ObjectPool {
+    constructor(createFn, initialSize = 32) {
+        this.pool = [];
+        this.createFn = createFn;
+        
+        for (let i = 0; i < initialSize; i++) {
+            this.pool.push(this.createFn());
+        }
+    }
+    
+    get() {
+        return this.pool.length > 0 ? this.pool.pop() : this.createFn();
+    }
+    
+    release(obj) {
+        this.pool.push(obj);
+    }
+}
+
+const particlePool = new ObjectPool(function() {
+    return {
+        x: 0, y: 0, vx: 0, vy: 0, size: 0,
+        baseColor: null, baseAlpha: 1,
+        lifetime: 0, age: 0, opacity: 1
+    };
+}, 64);
+
+function spawnPooledParticle(props) {
+    const particle = particlePool.get();
+    particle.x = props.x;
+    particle.y = props.y;
+    particle.vx = props.vx;
+    particle.vy = props.vy;
+    particle.size = props.size;
+    particle.baseColor = props.baseColor;
+    particle.baseAlpha = props.baseAlpha;
+    particle.lifetime = props.lifetime;
+    particle.age = 0;
+    particle.opacity = 1;
+    gameState.particles.push(particle);
+}
+
+function releaseAllParticles() {
+    for (const particle of gameState.particles) {
+        particlePool.release(particle);
+    }
+    gameState.particles.length = 0;
+}
+
 // Create jump dust particles
 function createJumpDustParticles() {
     const particleCount = 8;
@@ -4980,7 +5532,7 @@ function createJumpDustParticles() {
     const baseY = GAME_HEIGHT - GROUND_HEIGHT;
     
     for (let i = 0; i < particleCount; i++) {
-        gameState.particles.push({
+        spawnPooledParticle({
             x: baseX + (Math.random() - 0.5) * 40,
             y: baseY,
             vx: (Math.random() - 0.5) * 6,
@@ -4990,9 +5542,7 @@ function createJumpDustParticles() {
                 { r: 139, g: 69, b: 19 } : 
                 { r: 80, g: 80, b: 80 },
             baseAlpha: 0.4 + Math.random() * 0.3,
-            lifetime: 400 + Math.random() * 200,
-            age: 0,
-            opacity: 1
+            lifetime: 400 + Math.random() * 200
         });
     }
 }
@@ -5008,7 +5558,7 @@ function createLandingDustParticles() {
         const angle = (2 * Math.PI / particleCount) * i;
         // But only allow particles to go upward and sideways (not downward into ground)
         const vy = Math.sin(angle) < 0 ? Math.sin(angle) * 2 : -Math.random() * 2;
-        gameState.particles.push({
+        spawnPooledParticle({
             x: baseX,
             y: baseY,
             vx: Math.cos(angle) * (3 + Math.random() * 3),
@@ -5018,9 +5568,30 @@ function createLandingDustParticles() {
                 { r: 139, g: 69, b: 19 } : 
                 { r: 80, g: 80, b: 80 },
             baseAlpha: 0.5 + Math.random() * 0.3,
-            lifetime: 500 + Math.random() * 200,
-            age: 0,
-            opacity: 1
+            lifetime: 500 + Math.random() * 200
+        });
+    }
+}
+
+// Create a themed particle burst (coin/powerup/hit/milestone effects)
+function createParticleBurst(x, y, type) {
+    const config = PARTICLE_EFFECTS[type];
+    if (!config) return;
+    
+    for (let i = 0; i < config.count; i++) {
+        const color = config.color === 'rainbow'
+            ? { r: 100 + Math.floor(Math.random() * 155), g: 100 + Math.floor(Math.random() * 155), b: 100 + Math.floor(Math.random() * 155) }
+            : config.color;
+        
+        spawnPooledParticle({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10 - 5,
+            size: config.size * (0.5 + Math.random() * 0.5),
+            baseColor: color,
+            baseAlpha: 0.7 + Math.random() * 0.3,
+            lifetime: config.lifetime * (0.7 + Math.random() * 0.3)
         });
     }
 }
@@ -5040,11 +5611,574 @@ function updateParticles(deltaTime) {
         particle.opacity = (1 - lifeRatio) * (particle.baseAlpha || 1);
         particle.size *= 0.98;
         
-        // Remove dead particles
+        // Remove dead particles and return them to the pool
         if (particle.age >= particle.lifetime || particle.size < 1) {
             gameState.particles.splice(i, 1);
+            particlePool.release(particle);
         }
     }
+}
+
+// ========== SCREEN SHAKE ==========
+
+function triggerScreenShake(intensity, duration) {
+    // Keep the strongest active shake
+    if (intensity >= gameState.screenShake.intensity || gameState.screenShake.duration <= 0) {
+        gameState.screenShake.intensity = intensity;
+        gameState.screenShake.duration = duration;
+    }
+}
+
+function updateScreenShake(deltaTime) {
+    const shake = gameState.screenShake;
+    if (shake.duration > 0) {
+        shake.offsetX = (Math.random() - 0.5) * shake.intensity;
+        shake.offsetY = (Math.random() - 0.5) * shake.intensity;
+        shake.duration -= deltaTime;
+        if (shake.duration <= 0) {
+            shake.duration = 0;
+            shake.intensity = 0;
+            shake.offsetX = 0;
+            shake.offsetY = 0;
+        }
+    } else {
+        shake.offsetX = 0;
+        shake.offsetY = 0;
+    }
+}
+
+// ========== MILESTONE / STAGE SYSTEM ==========
+
+function checkMilestone() {
+    let reachedIndex = -1;
+    for (let i = 0; i < MILESTONES.length; i++) {
+        if (gameState.score >= MILESTONES[i].score) {
+            reachedIndex = i;
+        }
+    }
+    
+    if (reachedIndex > gameState.currentMilestoneIndex) {
+        gameState.currentMilestoneIndex = reachedIndex;
+        const milestone = MILESTONES[reachedIndex];
+        gameState.milestoneSpeedBonus = milestone.speedBonus;
+        
+        // Celebration feedback
+        createStageBanner(milestone.name);
+        createParticleBurst(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'milestone');
+        triggerScreenShake(4, 250);
+        playSound('powerup');
+    }
+}
+
+function getCurrentMilestone() {
+    return gameState.currentMilestoneIndex >= 0 ? MILESTONES[gameState.currentMilestoneIndex] : null;
+}
+
+function createStageBanner(stageName) {
+    gameState.pointIndicators.push({
+        x: GAME_WIDTH / 2,
+        y: GAME_HEIGHT / 3,
+        points: '',
+        displayText: `STAGE: ${stageName.toUpperCase()}!`,
+        textColor: '#ffd700',
+        opacity: 1.0,
+        scale: 1.2,
+        lifetime: 0,
+        maxLifetime: 2200
+    });
+}
+
+// ========== ACHIEVEMENT SYSTEM ==========
+
+let unlockedAchievements = {};
+
+function loadAchievements() {
+    try {
+        const saved = localStorage.getItem(ACHIEVEMENTS_STORAGE_KEY);
+        unlockedAchievements = saved ? JSON.parse(saved) : {};
+    } catch (e) {
+        console.error('Error loading achievements:', e);
+        unlockedAchievements = {};
+    }
+}
+
+function isAchievementUnlocked(id) {
+    return !!unlockedAchievements[id];
+}
+
+function unlockAchievement(id) {
+    if (!ACHIEVEMENTS[id] || unlockedAchievements[id]) return;
+    
+    unlockedAchievements[id] = { unlockedAt: Date.now() };
+    try {
+        localStorage.setItem(ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(unlockedAchievements));
+    } catch (e) {
+        console.error('Error saving achievements:', e);
+    }
+    
+    showAchievementToast(ACHIEVEMENTS[id]);
+    playSound('powerup');
+    renderAchievementsPanel();
+}
+
+function showAchievementToast(achievement) {
+    if (typeof document === 'undefined' || !document.body) return;
+    
+    const toast = document.createElement('div');
+    toast.className = 'achievement-toast';
+    toast.innerHTML = `
+        <span class="achievement-toast-icon">${achievement.icon}</span>
+        <span class="achievement-toast-text">
+            <strong>Achievement Unlocked!</strong><br>
+            ${achievement.name} — ${achievement.desc}
+        </span>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.classList.add('visible'), 30);
+    setTimeout(() => {
+        toast.classList.remove('visible');
+        setTimeout(() => toast.remove(), 500);
+    }, 3500);
+}
+
+function checkAchievements() {
+    if (gameState.runStats.coinsCollected >= 1) unlockAchievement('first_coin');
+    if (gameState.score >= 100) unlockAchievement('score_100');
+    if (gameState.score >= 500) unlockAchievement('score_500');
+    if (gameState.score >= 1000) unlockAchievement('score_1000');
+    if (gameState.combo.maxCombo >= 10) unlockAchievement('combo_10');
+    if (gameState.runStats.elapsedTime >= 60000) unlockAchievement('survive_60');
+    if (gameState.score >= 500 && gameState.runStats.damageTaken === 0) unlockAchievement('no_damage');
+    if (STANDARD_POWERUP_TYPES.every(type => gameState.runStats.powerupTypesCollected.has(type))) {
+        unlockAchievement('collect_all_powerups');
+    }
+    if (!gameState.dayMode && gameState.score >= 500) unlockAchievement('night_master');
+    if (gameState.difficulty === 'hard' && gameState.score >= 200) unlockAchievement('hard_survivor');
+}
+
+function renderAchievementsPanel() {
+    const panel = document.getElementById('achievementsPanel');
+    if (!panel) return;
+    
+    const total = Object.keys(ACHIEVEMENTS).length;
+    const unlockedCount = Object.keys(unlockedAchievements).filter(id => ACHIEVEMENTS[id]).length;
+    
+    let html = `<h3>Achievements (${unlockedCount}/${total})</h3><ul class="achievement-list">`;
+    for (const id of Object.keys(ACHIEVEMENTS)) {
+        const achievement = ACHIEVEMENTS[id];
+        const unlocked = isAchievementUnlocked(id);
+        html += `
+            <li class="achievement-item ${unlocked ? 'unlocked' : 'locked'}">
+                <span class="achievement-icon">${unlocked ? achievement.icon : '🔒'}</span>
+                <span class="achievement-info">
+                    <span class="achievement-name">${achievement.name}</span>
+                    <span class="achievement-desc">${achievement.desc}</span>
+                </span>
+            </li>`;
+    }
+    html += '</ul>';
+    panel.innerHTML = html;
+}
+
+// ========== DAILY CHALLENGE SYSTEM ==========
+
+let dailyChallenge = null;
+
+// Deterministic string hash so the same date always produces the same challenge
+function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash | 0; // Convert to 32-bit integer
+    }
+    return hash;
+}
+
+function getDailyChallenge(dateString = new Date().toDateString()) {
+    const seed = Math.abs(hashCode(dateString));
+    const challengeType = DAILY_CHALLENGE_TYPES[seed % DAILY_CHALLENGE_TYPES.length];
+    const target = challengeType.minTarget + (seed % challengeType.targetRange);
+    
+    return {
+        id: challengeType.id,
+        metric: challengeType.metric,
+        desc: challengeType.desc.replace('{target}', target),
+        target: target,
+        date: dateString
+    };
+}
+
+function loadDailyChallenge() {
+    dailyChallenge = getDailyChallenge();
+    
+    try {
+        const saved = JSON.parse(localStorage.getItem(DAILY_CHALLENGE_STORAGE_KEY) || 'null');
+        dailyChallenge.completed = !!(saved && saved.date === dailyChallenge.date && saved.completed);
+    } catch (e) {
+        dailyChallenge.completed = false;
+    }
+    
+    renderDailyChallenge();
+}
+
+function getDailyChallengeProgress() {
+    if (!dailyChallenge) return 0;
+    
+    switch (dailyChallenge.metric) {
+        case 'score': return gameState.score;
+        case 'coins': return gameState.runStats.coinsCollected;
+        case 'seconds': return Math.floor(gameState.runStats.elapsedTime / 1000);
+        case 'combo': return gameState.combo.maxCombo;
+        case 'powerups': return gameState.runStats.powerupsCollected;
+        default: return 0;
+    }
+}
+
+function updateDailyChallengeProgress() {
+    if (!dailyChallenge || dailyChallenge.completed) return;
+    
+    if (getDailyChallengeProgress() >= dailyChallenge.target) {
+        completeDailyChallenge();
+    }
+}
+
+function completeDailyChallenge() {
+    if (!dailyChallenge || dailyChallenge.completed) return;
+    
+    dailyChallenge.completed = true;
+    try {
+        localStorage.setItem(DAILY_CHALLENGE_STORAGE_KEY, JSON.stringify({
+            date: dailyChallenge.date,
+            completed: true
+        }));
+    } catch (e) {
+        console.error('Error saving daily challenge:', e);
+    }
+    
+    // Reward bonus points and celebrate
+    gameState.score += DAILY_CHALLENGE_REWARD;
+    updateScore();
+    gameState.pointIndicators.push({
+        x: GAME_WIDTH / 2,
+        y: GAME_HEIGHT / 2.5,
+        points: '',
+        displayText: `DAILY CHALLENGE COMPLETE! +${DAILY_CHALLENGE_REWARD}`,
+        textColor: '#2ecc71',
+        opacity: 1.0,
+        scale: 1.0,
+        lifetime: 0,
+        maxLifetime: 2500
+    });
+    createParticleBurst(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'milestone');
+    playSound('powerup');
+    renderDailyChallenge();
+}
+
+function renderDailyChallenge() {
+    const box = document.getElementById('dailyChallengeBox');
+    if (!box || !dailyChallenge) return;
+    
+    box.classList.remove('hidden');
+    box.innerHTML = `
+        <span class="daily-challenge-label">📅 Daily Challenge:</span>
+        <span class="daily-challenge-desc">${dailyChallenge.desc}</span>
+        <span class="daily-challenge-status ${dailyChallenge.completed ? 'done' : ''}">
+            ${dailyChallenge.completed ? '✅ Completed' : `Reward: +${DAILY_CHALLENGE_REWARD} pts`}
+        </span>
+    `;
+}
+
+// ========== GAME MODES ==========
+
+function setGameMode(mode) {
+    if (!Object.values(GAME_MODES).includes(mode)) mode = GAME_MODES.ENDLESS;
+    
+    gameState.gameMode = mode;
+    try {
+        localStorage.setItem(GAME_MODE_STORAGE_KEY, mode);
+    } catch (e) { /* storage unavailable */ }
+    updateGameModeButtons();
+}
+
+function updateGameModeButtons() {
+    const buttons = {
+        [GAME_MODES.ENDLESS]: document.getElementById('endlessModeBtn'),
+        [GAME_MODES.TIME_ATTACK]: document.getElementById('timeAttackModeBtn'),
+        [GAME_MODES.ENDLESS_PLUS]: document.getElementById('endlessPlusModeBtn')
+    };
+    
+    for (const mode in buttons) {
+        if (buttons[mode]) {
+            buttons[mode].classList.toggle('selected', gameState.gameMode === mode);
+        }
+    }
+}
+
+function getGameModeName(mode) {
+    switch (mode) {
+        case GAME_MODES.TIME_ATTACK: return 'Time Attack';
+        case GAME_MODES.ENDLESS_PLUS: return 'Endless+';
+        default: return 'Endless';
+    }
+}
+
+// Per-frame mode logic (time attack countdown, endless+ survival multiplier)
+function updateGameMode(deltaTime) {
+    if (gameState.gameMode === GAME_MODES.TIME_ATTACK) {
+        gameState.timeAttack.timeRemaining -= deltaTime;
+        if (gameState.timeAttack.timeRemaining <= 0) {
+            gameState.timeAttack.timeRemaining = 0;
+            gameOver();
+        }
+    } else if (gameState.gameMode === GAME_MODES.ENDLESS_PLUS) {
+        gameState.endlessPlus.elapsedSinceIncrease += deltaTime;
+        while (gameState.endlessPlus.elapsedSinceIncrease >= ENDLESS_PLUS_CONFIG.multiplierIncreaseInterval) {
+            gameState.endlessPlus.elapsedSinceIncrease -= ENDLESS_PLUS_CONFIG.multiplierIncreaseInterval;
+            gameState.endlessPlus.survivalMultiplier =
+                Math.round((gameState.endlessPlus.survivalMultiplier + ENDLESS_PLUS_CONFIG.multiplierIncreaseRate) * 10) / 10;
+        }
+    }
+}
+
+// Add bonus time in time attack mode (coins and power-ups extend the run)
+function addBonusTime(amount) {
+    if (gameState.gameMode !== GAME_MODES.TIME_ATTACK) return;
+    
+    gameState.timeAttack.timeRemaining += amount;
+    gameState.pointIndicators.push({
+        x: gameState.dimbadimba.x + gameState.dimbadimba.width + 30,
+        y: gameState.dimbadimba.y,
+        points: '',
+        displayText: `+${Math.round(amount / 1000)}s`,
+        textColor: '#4fc3f7',
+        opacity: 1.0,
+        scale: 0.7,
+        lifetime: 0,
+        maxLifetime: 900
+    });
+}
+
+// Draw the mode-specific HUD elements on the canvas
+function drawModeHUD() {
+    if (!gameState.running) return;
+    
+    if (gameState.gameMode === GAME_MODES.TIME_ATTACK) {
+        const secondsLeft = Math.max(0, gameState.timeAttack.timeRemaining / 1000);
+        const urgent = secondsLeft <= 10;
+        
+        ctx.save();
+        ctx.font = `bold ${urgent ? 42 : 34}px Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillStyle = urgent ? '#e74c3c' : '#ffffff';
+        const timerText = `⏱ ${secondsLeft.toFixed(1)}s`;
+        ctx.strokeText(timerText, GAME_WIDTH / 2, 14);
+        ctx.fillText(timerText, GAME_WIDTH / 2, 14);
+        ctx.restore();
+    } else if (gameState.gameMode === GAME_MODES.ENDLESS_PLUS) {
+        ctx.save();
+        ctx.font = 'bold 22px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillStyle = '#ff6b6b';
+        const multText = `💀 SURVIVAL x${gameState.endlessPlus.survivalMultiplier.toFixed(1)}`;
+        ctx.strokeText(multText, GAME_WIDTH / 2, 14);
+        ctx.fillText(multText, GAME_WIDTH / 2, 14);
+        ctx.restore();
+    }
+    
+    // Show current stage name if a milestone has been reached
+    const milestone = getCurrentMilestone();
+    if (milestone) {
+        ctx.save();
+        ctx.font = 'bold 14px Arial, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillStyle = '#ffd700';
+        const stageText = `STAGE: ${milestone.name.toUpperCase()}`;
+        ctx.strokeText(stageText, 14, 14);
+        ctx.fillText(stageText, 14, 14);
+        ctx.restore();
+    }
+}
+
+// ========== GHOST RUN ==========
+
+function getGhostStorageKey() {
+    return GHOST_STORAGE_PREFIX + gameState.gameMode;
+}
+
+function loadGhostForCurrentMode() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(getGhostStorageKey()) || 'null');
+        if (saved && Array.isArray(saved.frames) && saved.frames.length > 1) {
+            gameState.ghost.playback = saved.frames;
+            gameState.ghost.playbackScore = saved.score || 0;
+        } else {
+            gameState.ghost.playback = null;
+            gameState.ghost.playbackScore = 0;
+        }
+    } catch (e) {
+        gameState.ghost.playback = null;
+        gameState.ghost.playbackScore = 0;
+    }
+}
+
+function updateGhostRecording(deltaTime) {
+    const ghost = gameState.ghost;
+    ghost.recordTimer += deltaTime;
+    
+    if (ghost.recordTimer >= GHOST_RECORD_INTERVAL && ghost.recording.length < GHOST_MAX_FRAMES) {
+        ghost.recordTimer = 0;
+        ghost.recording.push({
+            t: Math.round(gameState.runStats.elapsedTime),
+            y: Math.round(gameState.dimbadimba.y)
+        });
+    }
+}
+
+function saveGhostIfBest() {
+    const ghost = gameState.ghost;
+    if (ghost.recording.length < 2) return;
+    
+    if (gameState.score > ghost.playbackScore) {
+        try {
+            localStorage.setItem(getGhostStorageKey(), JSON.stringify({
+                score: gameState.score,
+                frames: ghost.recording
+            }));
+        } catch (e) {
+            console.error('Error saving ghost run:', e);
+        }
+    }
+}
+
+// Interpolated ghost Y position for the current elapsed run time
+function getGhostPosition() {
+    const frames = gameState.ghost.playback;
+    if (!frames || frames.length < 2) return null;
+    
+    const elapsed = gameState.runStats.elapsedTime;
+    if (elapsed > frames[frames.length - 1].t) return null; // Ghost run finished
+    
+    let nextIndex = frames.findIndex(frame => frame.t >= elapsed);
+    if (nextIndex <= 0) return frames[0].y;
+    
+    const prev = frames[nextIndex - 1];
+    const next = frames[nextIndex];
+    const span = next.t - prev.t;
+    const ratio = span > 0 ? (elapsed - prev.t) / span : 0;
+    return prev.y + (next.y - prev.y) * ratio;
+}
+
+function drawGhost() {
+    if (!gameState.running || gameState.paused) return;
+    
+    const ghostY = getGhostPosition();
+    if (ghostY === null || !sprites.player) return;
+    
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    
+    if (sprites.playerOriginal) {
+        const offsetX = (sprites.player.width - gameState.dimbadimba.width) / 2;
+        const offsetY = (sprites.player.height - gameState.dimbadimba.height) / 2;
+        ctx.drawImage(
+            sprites.player,
+            gameState.dimbadimba.x - offsetX,
+            ghostY - offsetY,
+            sprites.player.width,
+            sprites.player.height
+        );
+    } else {
+        ctx.drawImage(
+            sprites.player,
+            gameState.dimbadimba.x,
+            ghostY,
+            gameState.dimbadimba.width,
+            gameState.dimbadimba.height
+        );
+    }
+    
+    ctx.restore();
+}
+
+// ========== LOCAL LEADERBOARD ==========
+
+function getLeaderboard() {
+    try {
+        const entries = JSON.parse(localStorage.getItem(LEADERBOARD_STORAGE_KEY) || '[]');
+        return Array.isArray(entries) ? entries : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveRunToLeaderboard() {
+    if (gameState.score <= 0) return;
+    
+    const entries = getLeaderboard();
+    entries.push({
+        score: gameState.score,
+        mode: gameState.gameMode,
+        difficulty: gameState.difficulty,
+        dayMode: gameState.dayMode,
+        maxCombo: gameState.combo.maxCombo,
+        date: Date.now()
+    });
+    
+    entries.sort((a, b) => b.score - a.score);
+    entries.length = Math.min(entries.length, LEADERBOARD_MAX_ENTRIES);
+    
+    try {
+        localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(entries));
+    } catch (e) {
+        console.error('Error saving leaderboard:', e);
+    }
+}
+
+function renderLeaderboard() {
+    const container = document.getElementById('leaderboardContainer');
+    if (!container) return;
+    
+    const entries = getLeaderboard();
+    if (entries.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = '<h3 class="leaderboard-title">🏆 Best Runs</h3><ol class="leaderboard-list">';
+    entries.slice(0, 5).forEach(entry => {
+        const dateText = new Date(entry.date).toLocaleDateString();
+        html += `
+            <li class="leaderboard-entry">
+                <span class="leaderboard-score">${entry.score}</span>
+                <span class="leaderboard-meta">${getGameModeName(entry.mode)} · ${entry.difficulty} · ${dateText}</span>
+            </li>`;
+    });
+    html += '</ol>';
+    container.innerHTML = html;
+}
+
+// ========== DYNAMIC MUSIC LAYERS ==========
+
+// Extra music layers switch on as the score climbs (read by the music scheduler)
+const musicLayerState = {
+    percussion: false,
+    kick: false
+};
+
+function updateMusicLayers() {
+    musicLayerState.percussion = gameState.running && gameState.score >= 100;
+    musicLayerState.kick = gameState.running && gameState.score >= 300;
 }
 
 // Draw particles
@@ -5068,7 +6202,13 @@ function drawParticles() {
 }
 
 // Add missing gameOver function
+let gameOverProcessed = false;
+
 function gameOver() {
+    // Prevent double-processing (e.g. collision and time-attack timer on the same frame)
+    if (gameOverProcessed && !gameState.running) return;
+    gameOverProcessed = true;
+    
     gameState.running = false;
     
     // Stop background music
@@ -5093,6 +6233,14 @@ function gameOver() {
     
     // Update final score display
     finalScoreElement.textContent = gameState.score;
+    
+    // Final achievement pass (covers end-of-run conditions)
+    checkAchievements();
+    
+    // Persist the run: leaderboard entry and best-run ghost
+    saveRunToLeaderboard();
+    saveGhostIfBest();
+    renderLeaderboard();
     
     // Create share buttons if they don't exist yet
     createSocialShareButtons();
