@@ -110,16 +110,21 @@ test.describe('Enhancement features', () => {
     expect(state.mode).toBe('endlessPlus');
     expect(state.lives).toBe(1);
 
-    // Simulate 10s of survival through the mode updater
-    const multiplier = await page.evaluate(() => {
+    // Simulate 10s of survival through the mode updater. Reset the counters and
+    // read both values in one evaluate so the live game loop (which also calls
+    // updateGameMode each frame) cannot interleave and skew the assertions.
+    const result = await page.evaluate(() => {
+      gameState.scoreMultiplier = 1.0;
+      gameState.endlessPlus.survivalMultiplier = 1.0;
+      gameState.endlessPlus.elapsedSinceIncrease = 0;
       updateGameMode(10000);
-      return gameState.endlessPlus.survivalMultiplier;
+      return {
+        multiplier: gameState.endlessPlus.survivalMultiplier,
+        scoreMult: getTotalScoreMultiplier()
+      };
     });
-    expect(multiplier).toBeCloseTo(1.1, 5);
-
-    // Scoring should now include the survival multiplier
-    const scoreMult = await page.evaluate(() => getTotalScoreMultiplier());
-    expect(scoreMult).toBeCloseTo(1.1, 5);
+    expect(result.multiplier).toBeCloseTo(1.1, 5);
+    expect(result.scoreMult).toBeCloseTo(1.1, 5);
 
     // A single hit ends the run
     await page.evaluate(() => {
