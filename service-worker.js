@@ -4,7 +4,7 @@
  */
 
 const CACHE_VERSION = 2;
-const DEPLOY_TIMESTAMP = '1783246118657';
+const DEPLOY_TIMESTAMP = '1783463775600';
 const CACHE_NAME = `dimbadimba-cache-v${CACHE_VERSION}-${DEPLOY_TIMESTAMP}`;
 
 // Debug logging - shows in the service worker console in the browser
@@ -18,6 +18,7 @@ function swLog(message, ...args) {
 // Assets to cache initially (these will be supplemented by the asset manifest)
 const ASSETS = [
   './character-display.css',
+  './enhancements.css',
   './icons/icon-128x128.png',
   './icons/icon-144x144.png',
   './icons/icon-152x152.png',

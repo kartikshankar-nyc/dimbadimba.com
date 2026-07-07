@@ -13,7 +13,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="description" content="Join dimbadimba on an endless adventure. Jump over obstacles, collect coins, and set high scores in this fast-paced pixel art runner game.">
     <title>Dimbadimba - Pixel Runner Game</title>
-    <link rel="stylesheet" href="style.css?v=118657">
+    <link rel="stylesheet" href="style.css?v=775600">
+    <link rel="stylesheet" href="enhancements.css?v=775600">
     <link rel="stylesheet" href="character-display.css">
     <link rel="manifest" href="manifest.json">
     
@@ -126,9 +127,22 @@
                             <button id="hardModeBtn" class="icon-toggle" aria-label="Hard Mode">🔴</button>
                         </div>
                     </div>
+                    
+                    <div class="option-group">
+                        <h3>Game Type</h3>
+                        <div class="icon-toggles game-type-toggles">
+                            <button id="endlessModeBtn" class="icon-toggle selected" aria-label="Endless Mode" title="Endless — classic run">🏃</button>
+                            <button id="timeAttackModeBtn" class="icon-toggle" aria-label="Time Attack Mode" title="Time Attack — 60s timer, coins add time">⏱️</button>
+                            <button id="endlessPlusModeBtn" class="icon-toggle" aria-label="Endless Plus Mode" title="Endless+ — one life, growing score multiplier">💀</button>
+                        </div>
+                    </div>
                 </div>
                 
+                <div id="dailyChallengeBox" class="daily-challenge-box hidden"></div>
+                
                 <button id="startButton">Start Game</button>
+                <button id="achievementsToggleBtn" class="achievements-toggle-btn" aria-label="Show Achievements">🏆 Achievements</button>
+                <div id="achievementsPanel" class="achievements-panel hidden"></div>
                 <button id="installButton" class="install-button install-button-overlay hidden" data-debug="install-btn" aria-label="Install app">
                     <span class="install-icon">📱</span> Install App
                 </button>
@@ -149,6 +163,7 @@
                 <h1>GAME OVER</h1>
                 <h2>Your Score:</h2>
                 <div id="finalScore">0</div>
+                <div id="leaderboardContainer" class="leaderboard-container"></div>
                 <button id="restartButton">PLAY AGAIN</button>
             </div>
         </div>
@@ -166,7 +181,7 @@
     </div>
     
     <!-- Add version query param to script file -->
-    <script src="script.js?v=118657"></script>
+    <script src="script.js?v=775600"></script>
     <script>
         // Improved service worker registration with better update handling
         if ('serviceWorker' in navigator) {
