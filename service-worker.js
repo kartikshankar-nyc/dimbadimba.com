@@ -18,6 +18,7 @@ function swLog(message, ...args) {
 // Assets to cache initially (these will be supplemented by the asset manifest)
 const ASSETS = [
   './character-display.css',
+  './enhancements.css',
   './icons/icon-128x128.png',
   './icons/icon-144x144.png',
   './icons/icon-152x152.png',

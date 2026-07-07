@@ -21,6 +21,7 @@ function generateAssetList() {
         const patterns = [
             'index.html',
             'style.css',
+            'enhancements.css',
             'character-display.css',
             'script.js',
             'service-worker.js',
@@ -119,6 +120,11 @@ let htmlContent = fs.readFileSync(htmlPath, 'utf8');
 htmlContent = htmlContent.replace(
   /<link rel="stylesheet" href="style\.css\?v=[^"]*"/g,
   `<link rel="stylesheet" href="style.css?v=${buildId}"`
+);
+
+htmlContent = htmlContent.replace(
+  /<link rel="stylesheet" href="enhancements\.css\?v=[^"]*"/g,
+  `<link rel="stylesheet" href="enhancements.css?v=${buildId}"`
 );
 
 htmlContent = htmlContent.replace(
