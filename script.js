@@ -1566,6 +1566,9 @@ function createLoopingMusic(audioCtx) {
         return totalDuration;
     }
 
+    let playSession = 0;
+    let pendingResumeTimeout = null;
+
     return {
         play: function() {
             if (!audioCtx || !gameState.soundEnabled || loopId) return;
@@ -1574,14 +1577,30 @@ function createLoopingMusic(audioCtx) {
             musicMasterGain.gain.setValueAtTime(0.9, audioCtx.currentTime);
 
             if (audioCtx.state === 'suspended') {
-                audioCtx.resume().then(() => {
+                const session = ++playSession;
+                const startLoop = () => {
+                    if (pendingResumeTimeout) {
+                        clearTimeout(pendingResumeTimeout);
+                        pendingResumeTimeout = null;
+                    }
+                    // Bail if stop() was called or a loop already started meanwhile
+                    if (session !== playSession || loopId) return;
                     scheduleLoop(audioCtx.currentTime);
-                });
+                };
+                audioCtx.resume().then(startLoop).catch(() => {});
+                // Fallback: some environments (e.g. headless browsers) never resolve
+                // resume(); schedule anyway so playback starts once audio unblocks.
+                pendingResumeTimeout = setTimeout(startLoop, 50);
             } else {
                 scheduleLoop(audioCtx.currentTime);
             }
         },
         stop: function(preserveTrack = false) {
+            playSession++;
+            if (pendingResumeTimeout) {
+                clearTimeout(pendingResumeTimeout);
+                pendingResumeTimeout = null;
+            }
             if (loopId) {
                 clearTimeout(loopId);
                 loopId = null;
@@ -1612,9 +1631,17 @@ function createLoopingMusic(audioCtx) {
             lastBassPattern = -1;
 
             if (audioCtx.state === 'suspended') {
-                audioCtx.resume().then(() => {
+                const session = ++playSession;
+                const restartLoop = () => {
+                    if (pendingResumeTimeout) {
+                        clearTimeout(pendingResumeTimeout);
+                        pendingResumeTimeout = null;
+                    }
+                    if (session !== playSession || loopId) return;
                     scheduleLoop(audioCtx.currentTime + 0.02);
-                });
+                };
+                audioCtx.resume().then(restartLoop).catch(() => {});
+                pendingResumeTimeout = setTimeout(restartLoop, 50);
             } else {
                 scheduleLoop(audioCtx.currentTime + 0.02);
             }

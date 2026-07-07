@@ -27,7 +27,17 @@ module.exports = defineConfig({
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: {
+        ...devices['Desktop Firefox'],
+        launchOptions: {
+          firefoxUserPrefs: {
+            // Allow the Web Audio context to start without a real user gesture,
+            // otherwise headless Firefox keeps the music scheduler suspended.
+            'media.autoplay.default': 0,
+            'media.autoplay.blocking_policy': 0
+          }
+        }
+      },
     },
     {
       name: 'webkit',
