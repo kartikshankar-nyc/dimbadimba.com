@@ -3709,6 +3709,25 @@ function drawGame() {
     if (sprites.player) {
         // Draw player (dimbadimba)
         ctx.save();
+
+        // Night mode: draw a soft spotlight behind the character so its dark
+        // outlines remain visible against the near-black sky.
+        if (!gameState.dayMode) {
+            const charCenterX = gameState.dimbadimba.x + gameState.dimbadimba.width / 2;
+            const charCenterY = gameState.dimbadimba.y + gameState.dimbadimba.height / 2;
+            const spotRadius = Math.max(gameState.dimbadimba.width, gameState.dimbadimba.height) * 1.1;
+            const spotlight = ctx.createRadialGradient(
+                charCenterX, charCenterY, 0,
+                charCenterX, charCenterY, spotRadius
+            );
+            spotlight.addColorStop(0,   'rgba(255, 245, 200, 0.35)');
+            spotlight.addColorStop(0.5, 'rgba(255, 245, 200, 0.14)');
+            spotlight.addColorStop(1,   'rgba(255, 245, 200, 0)');
+            ctx.fillStyle = spotlight;
+            ctx.beginPath();
+            ctx.arc(charCenterX, charCenterY, spotRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
         
         // Add flashing effect when invincible
         if (gameState.isInvincible) {
@@ -3732,6 +3751,11 @@ function drawGame() {
             // Add glow effect
             ctx.shadowColor = '#3498db';
             ctx.shadowBlur = 15;
+        } else if (!gameState.dayMode) {
+            // Night mode without shield: add a warm outline glow so dark edges
+            // stay visible against the dark sky.
+            ctx.shadowColor = 'rgba(255, 245, 200, 0.9)';
+            ctx.shadowBlur = 10;
         }
         
         // Draw player with rotating arms or normal sprite
