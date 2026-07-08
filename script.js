@@ -1842,6 +1842,26 @@ function loadPlayerImage() {
         '#ffffff'  // White - index 7 (alternating torso)
     ];
 
+    const updateStartScreenCharacter = (characterElement) => {
+        const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
+        if (!dimbadimbaDisplay) {
+            return;
+        }
+
+        dimbadimbaDisplay.innerHTML = '';
+        dimbadimbaDisplay.appendChild(characterElement);
+    };
+
+    // Always render a fallback immediately so the player is visible even if image loading is slow.
+    if (!sprites.playerOriginal) {
+        if (!sprites.player) {
+            sprites.player = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 18);
+        }
+
+        const fallbackStartScreenDimbadimba = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 32);
+        updateStartScreenCharacter(fallbackStartScreenDimbadimba);
+    }
+
     // Try to load the image
     const playerImage = new Image();
     playerImage.onload = function() {
@@ -1899,29 +1919,28 @@ function loadPlayerImage() {
         startScreenDimbadimba.style.position = 'relative'; // For proper scaling
         startScreenDimbadimba.style.zIndex = '5'; // Ensure it's above the container background
         startScreenDimbadimba.classList.add('start-screen-character');
-        
-        // Display character on start screen
-        const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
-        if (dimbadimbaDisplay) {
-            dimbadimbaDisplay.innerHTML = '';
-            dimbadimbaDisplay.appendChild(startScreenDimbadimba);
-        }
+
+        updateStartScreenCharacter(startScreenDimbadimba);
     };
     
     playerImage.onerror = function() {
         console.warn("Could not load dimbadimba image, falling back to pixel art");
+        sprites.playerOriginal = null;
+        gameState.dimbadimba.imageScale = null;
+        gameState.dimbadimba.imageWidth = null;
+        gameState.dimbadimba.imageHeight = null;
+        gameState.dimbadimba.imageOffsetX = null;
+        gameState.dimbadimba.imageOffsetY = null;
+        gameState.dimbadimba.canvasWidth = null;
+        gameState.dimbadimba.canvasHeight = null;
+
         // Create the player sprite with multiple colors - increased scale from 12 to 18
         sprites.player = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 18);
         
         // Also create a version for the start screen - increased scale from 24 to 32
         const startScreenDimbadimba = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 32);
-        
-        // Display character on start screen
-        const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
-        if (dimbadimbaDisplay) {
-            dimbadimbaDisplay.innerHTML = '';
-            dimbadimbaDisplay.appendChild(startScreenDimbadimba);
-        }
+
+        updateStartScreenCharacter(startScreenDimbadimba);
     };
     
     // Set the source to try loading the image
