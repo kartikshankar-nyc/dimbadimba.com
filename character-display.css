@@ -23,3 +23,43 @@
     0%, 100% { transform: scale(1.5) translateY(0); }
     50% { transform: scale(1.5) translateY(-10px); }
 } 
+
+@keyframes bounce_landscape {
+    0%, 100% { transform: scale(1.25) translateY(0); }
+    50% { transform: scale(1.25) translateY(-8px); }
+}
+
+@keyframes bounce_compact_landscape {
+    0%, 100% { transform: scale(1.1) translateY(0); }
+    50% { transform: scale(1.1) translateY(-6px); }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+    .character-display {
+        width: 120px !important;
+        height: 120px !important;
+    }
+
+    .character-display img {
+        transform: scale(1.25) !important;
+    }
+
+    .start-screen-character {
+        animation: bounce_landscape 2s infinite ease-in-out;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 450px) {
+    .character-display {
+        width: 80px !important;
+        height: 80px !important;
+    }
+
+    .character-display img {
+        transform: scale(1.1) !important;
+    }
+
+    .start-screen-character {
+        animation: bounce_compact_landscape 2s infinite ease-in-out;
+    }
+}
