@@ -336,6 +336,7 @@ const sprites = {
     player: null,
     obstacle: null,
     coin: null,
+    coinGlow: null,
     ground: null,
     background: null,
     dayBackground: null,
@@ -368,12 +369,15 @@ const colors = {
         ground: '#8B4513', // Brown
         groundDetail: '#A0522D', // Sienna
         groundLine: '#CD853F', // Peru
+        // Warm "danger" palette: no greens (invisible against green hills)
+        // and no yellows (reserved for coins)
         obstacleColors: [
-            { fill: '#3498db', outline: '#2980b9' }, // Blue
-            { fill: '#27ae60', outline: '#219653' }, // Green
-            { fill: '#8e44ad', outline: '#6c3483' }, // Purple
-            { fill: '#c0392b', outline: '#922b21' }  // Red
+            { fill: '#e74c3c', outline: '#96281b' }, // Red
+            { fill: '#e67e22', outline: '#9c5410' }, // Orange
+            { fill: '#8e44ad', outline: '#5b2c6f' }, // Purple
+            { fill: '#c0392b', outline: '#7b241c' }  // Dark red
         ],
+        obstacleRim: '#1a1a1a', // Dark rim for contrast against light sky/hills
         coinColor: '#f1c40f', // Yellow
     },
     night: {
@@ -381,12 +385,14 @@ const colors = {
         ground: '#333333', // Dark gray
         groundDetail: '#444444', // Medium gray
         groundLine: '#555555', // Light gray
+        // Bright warm palette: no greens or dark blues (blend into night scenery)
         obstacleColors: [
-            { fill: '#f39c12', outline: '#d35400' }, // Orange
-            { fill: '#3498db', outline: '#2980b9' }, // Blue
-            { fill: '#2ecc71', outline: '#27ae60' }, // Green
-            { fill: '#e74c3c', outline: '#c0392b' }  // Red
+            { fill: '#f39c12', outline: '#b06000' }, // Orange
+            { fill: '#e74c3c', outline: '#96281b' }, // Red
+            { fill: '#e84393', outline: '#a3235f' }, // Magenta
+            { fill: '#a55eea', outline: '#6c3483' }  // Bright purple
         ],
+        obstacleRim: '#ffffff', // White rim for contrast against dark sky
         coinColor: '#ffd700', // Gold
     }
 };
@@ -1756,7 +1762,8 @@ function createSprites() {
                 obstacleShapes[i],
                 color.fill, 
                 color.outline, 
-                4
+                4,
+                modeColors.obstacleRim
             )
         );
     }
@@ -1787,16 +1794,35 @@ function createSprites() {
         ], flyerColor, 4)
     ];
     
-    // Coin sprite (yellow circle)
-    sprites.coin = createPixelArt([
+    // Coin sprite: gold disc with dark rim and white sparkle highlight so it
+    // reads as a collectible, clearly distinct from obstacles
+    sprites.coin = createMultiColorPixelArt([
         [0,0,1,1,1,0,0],
-        [0,1,1,1,1,1,0],
-        [1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1],
-        [0,1,1,1,1,1,0],
+        [0,1,2,2,2,1,0],
+        [1,2,3,2,2,2,1],
+        [1,2,2,2,2,2,1],
+        [1,2,2,2,2,2,1],
+        [0,1,2,2,2,1,0],
         [0,0,1,1,1,0,0]
-    ], modeColors.coinColor, 4);
+    ], [
+        '#8a5a00',          // 1: dark gold rim
+        modeColors.coinColor, // 2: gold fill
+        '#fff6c9'           // 3: sparkle highlight
+    ], 4);
+    
+    // Pre-rendered soft golden glow drawn behind every coin (cheaper than
+    // per-frame canvas shadows on mobile)
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = 64;
+    glowCanvas.height = 64;
+    const glowCtx = glowCanvas.getContext('2d');
+    const glowGradient = glowCtx.createRadialGradient(32, 32, 6, 32, 32, 32);
+    glowGradient.addColorStop(0, 'rgba(255, 215, 0, 0.55)');
+    glowGradient.addColorStop(0.6, 'rgba(255, 215, 0, 0.25)');
+    glowGradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    glowCtx.fillStyle = glowGradient;
+    glowCtx.fillRect(0, 0, 64, 64);
+    sprites.coinGlow = glowCanvas;
     
     // Create ground pattern
     const groundCanvas = document.createElement('canvas');
@@ -2306,64 +2332,67 @@ function createMultiColorPixelArt(pixelData, colorMap, scale = 1) {
     return canvas;
 }
 
-function createObstacleWithOutline(pixels, fillColor, outlineColor, scale = 1) {
+function createObstacleWithOutline(pixels, fillColor, outlineColor, scale = 1, rimColor = null) {
+    const rows = pixels.length;
+    const cols = pixels[0].length;
+    // Padding cells on each side: 1 for the outline, +1 more if a contrast rim is requested
+    const pad = rimColor ? 2 : 1;
+    
     const canvas = document.createElement('canvas');
-    const width = pixels[0].length * scale;
-    const height = pixels.length * scale;
-    
-    // Add extra space for outline
-    canvas.width = width + scale * 2;
-    canvas.height = height + scale * 2;
-    
+    canvas.width = (cols + pad * 2) * scale;
+    canvas.height = (rows + pad * 2) * scale;
     const ctx = canvas.getContext('2d');
     
-    // Define outline pixels to check (8 directions)
-    const directions = [
-        [-1, -1], [0, -1], [1, -1],
-        [-1, 0],           [1, 0],
-        [-1, 1],  [0, 1],  [1, 1]
-    ];
+    const paddedCols = cols + pad * 2;
+    const paddedRows = rows + pad * 2;
     
-    // First pass: Draw the outline
-    for (let y = 0; y < pixels.length; y++) {
-        for (let x = 0; x < pixels[y].length; x++) {
-            if (pixels[y][x]) {
-                // For each filled pixel, draw outline in all 8 directions
-                for (const [dx, dy] of directions) {
-                    const newX = x + dx;
-                    const newY = y + dy;
-                    
-                    // Check if position is outside the pixel array or is an empty pixel
-                    if (newX < 0 || newY < 0 || 
-                        newX >= pixels[0].length || 
-                        newY >= pixels.length || 
-                        !pixels[newY][newX]) {
-                        
-                        ctx.fillStyle = outlineColor;
-                        ctx.fillRect(
-                            (x + dx) * scale + scale, 
-                            (y + dy) * scale + scale, 
-                            scale, scale
-                        );
+    // Build the base mask in padded coordinates
+    const baseMask = [];
+    for (let y = 0; y < paddedRows; y++) {
+        baseMask.push(new Array(paddedCols).fill(false));
+    }
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if (pixels[y][x]) baseMask[y + pad][x + pad] = true;
+        }
+    }
+    
+    // Dilate a mask by one cell in all 8 directions
+    const dilate = (mask) => {
+        const out = mask.map(row => row.slice());
+        for (let y = 0; y < paddedRows; y++) {
+            for (let x = 0; x < paddedCols; x++) {
+                if (!mask[y][x]) continue;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const ny = y + dy, nx = x + dx;
+                        if (ny >= 0 && ny < paddedRows && nx >= 0 && nx < paddedCols) {
+                            out[ny][nx] = true;
+                        }
                     }
                 }
             }
         }
-    }
+        return out;
+    };
     
-    // Second pass: Draw the actual pixels on top of the outline
-    for (let y = 0; y < pixels.length; y++) {
-        for (let x = 0; x < pixels[y].length; x++) {
-            if (pixels[y][x]) {
-                ctx.fillStyle = fillColor;
-                ctx.fillRect(
-                    x * scale + scale, 
-                    y * scale + scale, 
-                    scale, scale
-                );
+    const drawMask = (mask, color) => {
+        ctx.fillStyle = color;
+        for (let y = 0; y < paddedRows; y++) {
+            for (let x = 0; x < paddedCols; x++) {
+                if (mask[y][x]) ctx.fillRect(x * scale, y * scale, scale, scale);
             }
         }
+    };
+    
+    const outlineMask = dilate(baseMask);
+    
+    // Outer contrast rim first (so outline and fill layer on top)
+    if (rimColor) {
+        drawMask(dilate(outlineMask), rimColor);
     }
+    drawMask(outlineMask, outlineColor);
+    drawMask(baseMask, fillColor);
     
     return canvas;
 }
@@ -3680,8 +3709,19 @@ function drawGame() {
     // Draw flying obstacles
     drawFlyingObstacles();
     
-    // Draw coins
+    // Draw coins (golden glow behind each so they read as collectibles)
     gameState.coins.forEach(coin => {
+        if (sprites.coinGlow) {
+            const glowPad = coin.width * 0.45;
+            ctx.drawImage(
+                sprites.coinGlow,
+                coin.x - glowPad,
+                coin.y - glowPad,
+                coin.width + glowPad * 2,
+                coin.height + glowPad * 2
+            );
+        }
+        
         ctx.drawImage(
             sprites.coin,
             coin.x,
