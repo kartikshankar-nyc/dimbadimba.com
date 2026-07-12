@@ -530,6 +530,7 @@ function initializeGame() {
     if (modePref !== null) {
         gameState.dayMode = modePref === 'true';
         updateModeButtons();
+        updateCharacterDisplayForMode();
     }
     
     // Load difficulty preference from local storage
@@ -1690,6 +1691,7 @@ function toggleDayNightMode(isDayMode) {
     localStorage.setItem('pixelRunnerDayMode', gameState.dayMode);
     
     updateModeButtons();
+    updateCharacterDisplayForMode();
     createSprites();
     drawGame();
 
@@ -1701,6 +1703,19 @@ function toggleDayNightMode(isDayMode) {
         typeof sounds.backgroundMusic.refreshMode === 'function'
     ) {
         sounds.backgroundMusic.refreshMode();
+    }
+}
+
+function updateCharacterDisplayForMode() {
+    const dimbadimbaDisplay = document.getElementById('dimbadimbaDisplay');
+    if (!dimbadimbaDisplay) return;
+    
+    if (!gameState.dayMode) {
+        dimbadimbaDisplay.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+        dimbadimbaDisplay.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.3)';
+    } else {
+        dimbadimbaDisplay.style.backgroundColor = '';
+        dimbadimbaDisplay.style.boxShadow = '';
     }
 }
 
@@ -1850,28 +1865,23 @@ function loadPlayerImage() {
         // Store the original image for reference
         sprites.playerOriginal = playerImage;
         
-        // Create a properly sized version that maintains aspect ratio
+        // Scale the character to fit within the sprite canvas without negative offsets.
+        // Previous math could produce negative x/y which some mobile browsers clip incorrectly.
+        const canvasW = PLAYER_WIDTH * 2.2;
+        const canvasH = PLAYER_HEIGHT * 2.2;
         const canvas = document.createElement('canvas');
-        canvas.width = PLAYER_WIDTH * 2.2;  // Increased from 1.5x
-        canvas.height = PLAYER_HEIGHT * 2.2; // Increased from 1.5x
+        canvas.width = canvasW;
+        canvas.height = canvasH;
         const ctx = canvas.getContext('2d');
         
-        // Calculate base scaling to maintain aspect ratio
-        let baseScale = Math.min(
-            PLAYER_WIDTH / playerImage.width,
-            PLAYER_HEIGHT / playerImage.height
-        );
-        
-        // Make the character larger (increased from 2.5x)
-        const scale = baseScale * 3.6;
-        
-        // Calculate dimensions with the enhanced scale
+        // Scale to fill the canvas while maintaining aspect ratio (contain)
+        const scale = Math.min(canvasW / playerImage.width, canvasH / playerImage.height);
         const width = playerImage.width * scale;
         const height = playerImage.height * scale;
         
-        // Center the image on the canvas (may extend beyond player hitbox)
-        const x = (canvas.width - width) / 2;
-        const y = (canvas.height - height) / 2;
+        // Center the image within the canvas (always non-negative offsets)
+        const x = (canvasW - width) / 2;
+        const y = (canvasH - height) / 2;
         
         // Store these dimensions and offsets for use in drawGame
         gameState.dimbadimba.imageScale = scale;
@@ -1885,6 +1895,14 @@ function loadPlayerImage() {
         // Clear and draw the image centered and scaled
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(playerImage, x, y, width, height);
+        
+        // Verify the image actually rendered (some mobile browsers silently fail)
+        if (playerImage.naturalWidth === 0 || playerImage.naturalHeight === 0) {
+            console.warn("Player image has zero natural dimensions, using pixel art fallback");
+            sprites.playerOriginal = null;
+            sprites.player = createMultiColorPixelArt(dimbadimbaPixels, colorMap, 18);
+            return;
+        }
         
         // Use this canvas as the player sprite
         sprites.player = canvas;
@@ -3648,9 +3666,6 @@ function drawGame() {
     // Draw ground
     drawGround();
     
-    // Draw best-run ghost behind the live player
-    drawGhost();
-    
     // Draw obstacles
     gameState.obstacles.forEach(obstacle => {
         ctx.drawImage(
@@ -3732,6 +3747,12 @@ function drawGame() {
             // Add glow effect
             ctx.shadowColor = '#3498db';
             ctx.shadowBlur = 15;
+        }
+        
+        // In night mode, add a pronounced glow behind the character for visibility
+        if (!gameState.dayMode) {
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 20;
         }
         
         // Draw player with rotating arms or normal sprite
@@ -6088,55 +6109,10 @@ function saveGhostIfBest() {
     }
 }
 
-// Interpolated ghost Y position for the current elapsed run time
-function getGhostPosition() {
-    const frames = gameState.ghost.playback;
-    if (!frames || frames.length < 2) return null;
-    
-    const elapsed = gameState.runStats.elapsedTime;
-    if (elapsed > frames[frames.length - 1].t) return null; // Ghost run finished
-    
-    let nextIndex = frames.findIndex(frame => frame.t >= elapsed);
-    if (nextIndex <= 0) return frames[0].y;
-    
-    const prev = frames[nextIndex - 1];
-    const next = frames[nextIndex];
-    const span = next.t - prev.t;
-    const ratio = span > 0 ? (elapsed - prev.t) / span : 0;
-    return prev.y + (next.y - prev.y) * ratio;
-}
-
-function drawGhost() {
-    if (!gameState.running || gameState.paused) return;
-    
-    const ghostY = getGhostPosition();
-    if (ghostY === null || !sprites.player) return;
-    
-    ctx.save();
-    ctx.globalAlpha = 0.3;
-    
-    if (sprites.playerOriginal) {
-        const offsetX = (sprites.player.width - gameState.dimbadimba.width) / 2;
-        const offsetY = (sprites.player.height - gameState.dimbadimba.height) / 2;
-        ctx.drawImage(
-            sprites.player,
-            gameState.dimbadimba.x - offsetX,
-            ghostY - offsetY,
-            sprites.player.width,
-            sprites.player.height
-        );
-    } else {
-        ctx.drawImage(
-            sprites.player,
-            gameState.dimbadimba.x,
-            ghostY,
-            gameState.dimbadimba.width,
-            gameState.dimbadimba.height
-        );
-    }
-    
-    ctx.restore();
-}
+// NOTE: The best-run ghost replay used to be drawn on top of the live player
+// (same x position, 30% opacity), which looked like a duplicate "phantom"
+// character during runs. Ghost data is still recorded and stored for the
+// leaderboard, but the visual replay is intentionally not rendered.
 
 // ========== LOCAL LEADERBOARD ==========
 
