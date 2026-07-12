@@ -3666,9 +3666,6 @@ function drawGame() {
     // Draw ground
     drawGround();
     
-    // Draw best-run ghost behind the live player
-    drawGhost();
-    
     // Draw obstacles
     gameState.obstacles.forEach(obstacle => {
         ctx.drawImage(
@@ -6112,55 +6109,10 @@ function saveGhostIfBest() {
     }
 }
 
-// Interpolated ghost Y position for the current elapsed run time
-function getGhostPosition() {
-    const frames = gameState.ghost.playback;
-    if (!frames || frames.length < 2) return null;
-    
-    const elapsed = gameState.runStats.elapsedTime;
-    if (elapsed > frames[frames.length - 1].t) return null; // Ghost run finished
-    
-    let nextIndex = frames.findIndex(frame => frame.t >= elapsed);
-    if (nextIndex <= 0) return frames[0].y;
-    
-    const prev = frames[nextIndex - 1];
-    const next = frames[nextIndex];
-    const span = next.t - prev.t;
-    const ratio = span > 0 ? (elapsed - prev.t) / span : 0;
-    return prev.y + (next.y - prev.y) * ratio;
-}
-
-function drawGhost() {
-    if (!gameState.running || gameState.paused) return;
-    
-    const ghostY = getGhostPosition();
-    if (ghostY === null || !sprites.player) return;
-    
-    ctx.save();
-    ctx.globalAlpha = 0.3;
-    
-    if (sprites.playerOriginal) {
-        const offsetX = (sprites.player.width - gameState.dimbadimba.width) / 2;
-        const offsetY = (sprites.player.height - gameState.dimbadimba.height) / 2;
-        ctx.drawImage(
-            sprites.player,
-            gameState.dimbadimba.x - offsetX,
-            ghostY - offsetY,
-            sprites.player.width,
-            sprites.player.height
-        );
-    } else {
-        ctx.drawImage(
-            sprites.player,
-            gameState.dimbadimba.x,
-            ghostY,
-            gameState.dimbadimba.width,
-            gameState.dimbadimba.height
-        );
-    }
-    
-    ctx.restore();
-}
+// NOTE: The best-run ghost replay used to be drawn on top of the live player
+// (same x position, 30% opacity), which looked like a duplicate "phantom"
+// character during runs. Ghost data is still recorded and stored for the
+// leaderboard, but the visual replay is intentionally not rendered.
 
 // ========== LOCAL LEADERBOARD ==========
 
