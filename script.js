@@ -337,6 +337,7 @@ const sprites = {
     obstacle: null,
     coin: null,
     coinGlow: null,
+    obstacleAuras: [],
     ground: null,
     background: null,
     dayBackground: null,
@@ -369,12 +370,12 @@ const colors = {
         ground: '#8B4513', // Brown
         groundDetail: '#A0522D', // Sienna
         groundLine: '#CD853F', // Peru
-        // Warm "danger" palette: no greens (invisible against green hills)
-        // and no yellows (reserved for coins)
+        // Warm "danger" palette: no greens (invisible against green hills),
+        // no yellows (reserved for coins), no purples (user request)
         obstacleColors: [
             { fill: '#e74c3c', outline: '#96281b' }, // Red
             { fill: '#e67e22', outline: '#9c5410' }, // Orange
-            { fill: '#8e44ad', outline: '#5b2c6f' }, // Purple
+            { fill: '#ff6348', outline: '#b03a26' }, // Tomato
             { fill: '#c0392b', outline: '#7b241c' }  // Dark red
         ],
         obstacleRim: '#1a1a1a', // Dark rim for contrast against light sky/hills
@@ -385,12 +386,13 @@ const colors = {
         ground: '#333333', // Dark gray
         groundDetail: '#444444', // Medium gray
         groundLine: '#555555', // Light gray
-        // Bright warm palette: no greens or dark blues (blend into night scenery)
+        // Bright warm palette: no greens or dark blues (blend into night
+        // scenery), no purples/magentas (user request)
         obstacleColors: [
             { fill: '#f39c12', outline: '#b06000' }, // Orange
             { fill: '#e74c3c', outline: '#96281b' }, // Red
-            { fill: '#e84393', outline: '#a3235f' }, // Magenta
-            { fill: '#a55eea', outline: '#6c3483' }  // Bright purple
+            { fill: '#ff6348', outline: '#b03a26' }, // Tomato
+            { fill: '#ff9f43', outline: '#c86e14' }  // Light orange
         ],
         obstacleRim: '#ffffff', // White rim for contrast against dark sky
         coinColor: '#ffd700', // Gold
@@ -435,6 +437,36 @@ const obstacleShapes = [
         [1,0,1,0,1,0,1],
         [1,1,1,1,1,1,1],
         [1,0,1,0,1,0,1],
+        [1,1,1,1,1,1,1]
+    ],
+    // Pyramid shape
+    [
+        [0,0,0,1,0,0,0],
+        [0,0,1,1,1,0,0],
+        [0,0,1,1,1,0,0],
+        [0,1,1,1,1,1,0],
+        [0,1,1,1,1,1,0],
+        [1,1,1,1,1,1,1]
+    ],
+    // Crystal shape (tall diamond)
+    [
+        [0,0,1,0,0],
+        [0,1,1,1,0],
+        [1,1,1,1,1],
+        [1,1,1,1,1],
+        [1,1,1,1,1],
+        [0,1,1,1,0],
+        [0,1,1,1,0],
+        [0,0,1,0,0],
+        [0,0,1,0,0]
+    ],
+    // Gate/barrier shape
+    [
+        [1,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1],
+        [0,1,0,1,0,1,0],
+        [0,1,0,1,0,1,0],
         [1,1,1,1,1,1,1]
     ]
 ];
@@ -1768,11 +1800,22 @@ function createSprites() {
         );
     }
     
+    // Soft glow aura drawn behind each obstacle: the obstacle's own color in
+    // day mode, white in night mode (pre-rendered, no per-frame shadow cost)
+    sprites.obstacleAuras = [];
+    for (let i = 0; i < obstacleShapes.length; i++) {
+        const colorIndex = i % modeColors.obstacleColors.length;
+        const auraColor = gameState.dayMode
+            ? modeColors.obstacleColors[colorIndex].fill
+            : '#ffffff';
+        sprites.obstacleAuras.push(createAuraSprite(auraColor));
+    }
+    
     // Keep backward compatibility
     sprites.obstacle = sprites.obstacles[0];
     
     // Flying obstacle sprites (two frames for wing flap animation)
-    const flyerColor = gameState.dayMode ? '#8e44ad' : '#f39c12';
+    const flyerColor = gameState.dayMode ? '#c0392b' : '#f39c12';
     sprites.flyingObstacles = [
         // Wings up
         createPixelArt([
@@ -2329,6 +2372,30 @@ function createMultiColorPixelArt(pixelData, colorMap, scale = 1) {
         }
     }
     
+    return canvas;
+}
+
+// Pre-rendered radial glow used behind obstacles. Cached per color.
+const auraSpriteCache = {};
+function createAuraSprite(hexColor) {
+    if (auraSpriteCache[hexColor]) return auraSpriteCache[hexColor];
+    
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(32, 32, 4, 32, 32, 32);
+    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.85)`);
+    gradient.addColorStop(0.55, `rgba(${r}, ${g}, ${b}, 0.45)`);
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 64, 64);
+    
+    auraSpriteCache[hexColor] = canvas;
     return canvas;
 }
 
@@ -3363,15 +3430,37 @@ function updateObstacles(deltaTime) {
     }
 }
 
+// Chance that a spawned obstacle is an animated amoeba instead of a static shape
+const AMOEBA_OBSTACLE_CHANCE = 0.3;
+
 // Helper function to spawn an obstacle
 function spawnObstacle() {
     gameState.timeSinceLastObstacle = 0;
     
-    // Randomize obstacle shape
-    const shapeIndex = Math.floor(Math.random() * sprites.obstacles.length);
-    
     // Vary the height based on shape (some shapes look better shorter or taller)
     const baseHeight = OBSTACLE_MIN_HEIGHT + Math.random() * (OBSTACLE_MAX_HEIGHT - OBSTACLE_MIN_HEIGHT);
+    
+    // Some obstacles are animated amoebas with waving tentacles
+    if (Math.random() < AMOEBA_OBSTACLE_CHANCE) {
+        const width = OBSTACLE_WIDTH * 1.25;
+        const height = baseHeight;
+        gameState.obstacles.push({
+            id: ++obstacleIdCounter,
+            x: GAME_WIDTH,
+            previousX: GAME_WIDTH,
+            y: GAME_HEIGHT - GROUND_HEIGHT - height,
+            width: width,
+            height: height,
+            shapeIndex: 0,
+            kind: 'amoeba',
+            colorIndex: Math.floor(Math.random() * 4),
+            wavePhase: Math.random() * Math.PI * 2
+        });
+        return;
+    }
+    
+    // Randomize obstacle shape
+    const shapeIndex = Math.floor(Math.random() * sprites.obstacles.length);
     
     // Adjust dimensions based on shape index
     let width = OBSTACLE_WIDTH;
@@ -3386,6 +3475,12 @@ function spawnObstacle() {
     } else if (shapeIndex === 3) { // Log - longer
         width = OBSTACLE_WIDTH * 0.8;
         height = baseHeight * 1.4;
+    } else if (shapeIndex === 4) { // Pyramid - wider, shorter
+        width = OBSTACLE_WIDTH * 1.3;
+        height = baseHeight * 0.75;
+    } else if (shapeIndex === 5) { // Crystal - narrower, taller
+        width = OBSTACLE_WIDTH * 0.75;
+        height = baseHeight * 1.3;
     }
     
     gameState.obstacles.push({
@@ -3497,6 +3592,108 @@ function drawFlyingObstacles() {
             ctx.drawImage(sprite, flyer.x, flyer.y, flyer.width, flyer.height);
         }
     });
+}
+
+// Animated amoeba obstacle: wobbling blob body with tentacles that wave
+// using gameTime. The collision hitbox is the obstacle rect; tentacles stay
+// close to the body so the visual matches the hitbox fairly.
+function drawAmoebaObstacle(obstacle) {
+    const modeColors = gameState.dayMode ? colors.day : colors.night;
+    const color = modeColors.obstacleColors[obstacle.colorIndex % modeColors.obstacleColors.length];
+    const rimColor = modeColors.obstacleRim;
+    
+    const centerX = obstacle.x + obstacle.width / 2;
+    const bottom = obstacle.y + obstacle.height;
+    const bodyHeight = obstacle.height * 0.68;
+    const bodyTop = bottom - bodyHeight;
+    const bodyCenterY = bodyTop + bodyHeight / 2;
+    const radiusX = obstacle.width / 2;
+    const radiusY = bodyHeight / 2;
+    const phase = obstacle.wavePhase || 0;
+    
+    // Glow aura (same treatment as static obstacles)
+    const auraColor = gameState.dayMode ? color.fill : '#ffffff';
+    const aura = createAuraSprite(auraColor);
+    const auraPad = obstacle.width * 0.55;
+    ctx.drawImage(
+        aura,
+        obstacle.x - auraPad,
+        obstacle.y - auraPad,
+        obstacle.width + auraPad * 2,
+        obstacle.height + auraPad * 2
+    );
+    
+    ctx.save();
+    
+    // Tentacles first so they emerge from behind the body
+    const tentacleCount = 5;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < tentacleCount; i++) {
+        const baseX = obstacle.x + obstacle.width * (0.12 + 0.19 * i);
+        const sway = Math.sin(gameTime / 180 + phase + i * 1.15) * obstacle.width * 0.2;
+        const length = obstacle.height * 0.4 + Math.sin(gameTime / 240 + phase + i * 2.1) * 5;
+        const tipX = baseX + sway;
+        const tipY = bodyTop - length;
+        
+        // Contrast rim pass, then colored pass
+        ctx.strokeStyle = rimColor;
+        ctx.lineWidth = 9;
+        ctx.beginPath();
+        ctx.moveTo(baseX, bodyTop + 8);
+        ctx.quadraticCurveTo(baseX + sway * 0.4, bodyTop - length * 0.5, tipX, tipY);
+        ctx.stroke();
+        
+        ctx.strokeStyle = color.fill;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(baseX, bodyTop + 8);
+        ctx.quadraticCurveTo(baseX + sway * 0.4, bodyTop - length * 0.5, tipX, tipY);
+        ctx.stroke();
+    }
+    
+    // Wobbling blob body
+    const wobblePoints = 12;
+    ctx.beginPath();
+    for (let i = 0; i <= wobblePoints; i++) {
+        const angle = (i / wobblePoints) * Math.PI * 2;
+        const wobble = 1 + Math.sin(angle * 3 + gameTime / 300 + phase) * 0.08;
+        const px = centerX + Math.cos(angle) * radiusX * wobble;
+        const py = bodyCenterY + Math.sin(angle) * radiusY * wobble;
+        if (i === 0) {
+            ctx.moveTo(px, py);
+        } else {
+            ctx.lineTo(px, py);
+        }
+    }
+    ctx.closePath();
+    ctx.strokeStyle = rimColor;
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    ctx.fillStyle = color.fill;
+    ctx.fill();
+    ctx.strokeStyle = color.outline;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Simple eyes so the amoeba reads as a living hazard
+    const eyeOffsetX = radiusX * 0.35;
+    const eyeY = bodyCenterY - radiusY * 0.25;
+    const eyeRadius = Math.max(3, radiusX * 0.16);
+    const pupilShift = Math.sin(gameTime / 400 + phase) * eyeRadius * 0.3;
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(centerX - eyeOffsetX, eyeY, eyeRadius, 0, Math.PI * 2);
+    ctx.arc(centerX + eyeOffsetX, eyeY, eyeRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.arc(centerX - eyeOffsetX + pupilShift, eyeY, eyeRadius * 0.45, 0, Math.PI * 2);
+    ctx.arc(centerX + eyeOffsetX + pupilShift, eyeY, eyeRadius * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
 }
 
 // Function to get current game speed (considering power-ups and milestone stage bonus)
@@ -3695,8 +3892,25 @@ function drawGame() {
     // Draw ground
     drawGround();
     
-    // Draw obstacles
+    // Draw obstacles (glow aura underneath so every obstacle stands out)
     gameState.obstacles.forEach(obstacle => {
+        if (obstacle.kind === 'amoeba') {
+            drawAmoebaObstacle(obstacle);
+            return;
+        }
+        
+        const aura = sprites.obstacleAuras[obstacle.shapeIndex];
+        if (aura) {
+            const auraPad = obstacle.width * 0.55;
+            ctx.drawImage(
+                aura,
+                obstacle.x - auraPad,
+                obstacle.y - auraPad,
+                obstacle.width + auraPad * 2,
+                obstacle.height + auraPad * 2
+            );
+        }
+        
         ctx.drawImage(
             sprites.obstacles[obstacle.shapeIndex] || sprites.obstacle,
             obstacle.x,
