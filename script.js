@@ -83,6 +83,9 @@ const SMOKE_SIZE_MIN = 4;        // Reduced from 5
 const SMOKE_SIZE_MAX = 12;       // Reduced from 15
 const SMOKE_LIFETIME = 2400;     // Increased from 2000 ms for longer-lasting smoke
 const PLAYER_TOP_SAFE_MARGIN = 70;
+const JUMP_CLEARANCE_MARGIN = 60; // Rise (logical px) guaranteed above the tallest obstacle so a jump can always clear it
+const WORLD_REFERENCE_HEIGHT = 560; // Viewport height at/above which the world renders 1:1 (desktop unaffected)
+const WORLD_MIN_SCALE = 0.4; // Never shrink the game world below this factor on tiny viewports
 const BACKGROUND_SEAM_FIX_WIDTH = 4;
 
 // Unique ID counter for obstacles
@@ -234,6 +237,7 @@ let gameState = {
     powerupInterval: 5000, // Minimum time between power-up spawns
     groundPos: 0,
     groundPattern: null,
+    renderScale: 1, // Logical->physical canvas scale (see updateCanvasSize); <1 shrinks the world on short screens
     backgroundPos: [0, 0, 0, 0], // Multiple background positions for parallax
     backgroundSpeed: [0.2, 0.5, 1, 2], // Different speeds for each layer
     soundEnabled: true,
@@ -742,12 +746,13 @@ function updateCanvasSize() {
     
     // iOS and Android have different ways of reporting viewport size
     // Use visual viewport API if available (more accurate on mobile)
+    let realWidth, realHeight;
     if (window.visualViewport) {
-        GAME_WIDTH = window.visualViewport.width;
-        GAME_HEIGHT = window.visualViewport.height;
+        realWidth = window.visualViewport.width;
+        realHeight = window.visualViewport.height;
     } else {
-        GAME_WIDTH = window.innerWidth;
-        GAME_HEIGHT = window.innerHeight;
+        realWidth = window.innerWidth;
+        realHeight = window.innerHeight;
     }
     
     // Adjust for iOS safe areas
@@ -755,27 +760,41 @@ function updateCanvasSize() {
         const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0');
         const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0');
         
-        if (safeAreaTop) GAME_HEIGHT -= safeAreaTop;
-        if (safeAreaBottom) GAME_HEIGHT -= safeAreaBottom;
+        if (safeAreaTop) realHeight -= safeAreaTop;
+        if (safeAreaBottom) realHeight -= safeAreaBottom;
     }
     
     // Performance optimization for mobile devices
     const isMobile = isIOS || isAndroid || /webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Reduce quality on low-end devices
-    if (isMobile && (GAME_WIDTH * GAME_HEIGHT > 1000000)) {
+    // World scaling: on short viewports (e.g. mobile landscape) the fixed-size world
+    // (player, obstacles, full-power jump) does not fit vertically, which previously forced
+    // the jump cap to starve the jump. Instead we render the ENTIRE world at a smaller scale
+    // so a full jump always stays visible. Game logic keeps running in a taller "logical"
+    // coordinate space (GAME_WIDTH/GAME_HEIGHT), and the final frame is scaled down at draw
+    // time. Tall screens (desktop) use scale 1 and are therefore pixel-identical to before.
+    const worldScale = Math.max(WORLD_MIN_SCALE, Math.min(1, realHeight / WORLD_REFERENCE_HEIGHT));
+    GAME_WIDTH = realWidth / worldScale;
+    GAME_HEIGHT = realHeight / worldScale;
+    
+    // Physical backing store (in device-independent pixels), with the existing extra
+    // downscale for very high-resolution mobile screens.
+    if (isMobile && (realWidth * realHeight > 1000000)) {
         // For very high-resolution mobile screens, use a scaling factor
-        const scaleFactor = Math.min(1, 1000000 / (GAME_WIDTH * GAME_HEIGHT));
+        const scaleFactor = Math.min(1, 1000000 / (realWidth * realHeight));
         canvas.style.width = '100%';
         canvas.style.height = '100%';
-        canvas.width = Math.floor(GAME_WIDTH * scaleFactor);
-        canvas.height = Math.floor(GAME_HEIGHT * scaleFactor);
+        canvas.width = Math.floor(realWidth * scaleFactor);
+        canvas.height = Math.floor(realHeight * scaleFactor);
         ctx.imageSmoothingEnabled = false; // Keep pixel art crisp
     } else {
         // Set canvas dimensions
-        canvas.width = GAME_WIDTH;
-        canvas.height = GAME_HEIGHT;
+        canvas.width = realWidth;
+        canvas.height = realHeight;
     }
+    
+    // Uniform transform mapping logical game coordinates onto the physical backing store.
+    gameState.renderScale = canvas.width / GAME_WIDTH;
     
     // Update player position to maintain relative distance from ground
     if (gameState.running) {
@@ -3280,11 +3299,26 @@ function getPlayerVisualBounds(atX = gameState.dimbadimba.x, atY = gameState.dim
 
 function getVisibleJumpVelocity(desiredJumpVelocity) {
     const currentVisualBounds = getPlayerVisualBounds();
-    const availableRise = Math.max(0, currentVisualBounds.top - PLAYER_TOP_SAFE_MARGIN);
     const effectiveGravity = Math.max(getEffectiveGravity(), 0.01);
-    const maxVisibleVelocity = -Math.max(4, Math.sqrt(2 * effectiveGravity * availableRise));
-    
-    return Math.max(desiredJumpVelocity, maxVisibleVelocity);
+
+    // How far the character can rise before its sprite reaches the top safe margin.
+    const availableRise = Math.max(0, currentVisualBounds.top - PLAYER_TOP_SAFE_MARGIN);
+    const screenLimitVelocity = Math.sqrt(2 * effectiveGravity * availableRise);
+
+    // Gameplay floor: a jump must ALWAYS be able to clear the tallest obstacle plus a
+    // comfort margin, even on short screens. This is never clamped away, so mobile stays
+    // playable regardless of how little vertical headroom the screen has.
+    const clearanceRise = OBSTACLE_MAX_HEIGHT + JUMP_CLEARANCE_MARGIN;
+    const clearanceVelocity = Math.sqrt(2 * effectiveGravity * clearanceRise);
+
+    // Permit the greater of "what fits on screen" and "what clears obstacles", but never
+    // more than the player actually requested. On tall screens the screen limit dominates
+    // (desktop is unchanged); on short screens the clearance floor keeps jumps useful while
+    // still bounding boosted (2x/3x) jumps from flying far off the top of the screen.
+    const allowedMagnitude = Math.max(screenLimitVelocity, clearanceVelocity);
+    const appliedMagnitude = Math.min(Math.abs(desiredJumpVelocity), allowedMagnitude);
+
+    return -appliedMagnitude;
 }
 
 function getLandingProjection() {
@@ -3879,7 +3913,13 @@ function checkFlyingObstacleCollisions() {
 
 // Fix drawing function for proper invincibility effect
 function drawGame() {
-    // Clear canvas
+    // Map the logical game coordinate space onto the physical backing store. On short
+    // screens this scales the whole world down so a full jump stays visible; on desktop
+    // renderScale is 1 (identity), leaving rendering unchanged.
+    const renderScale = gameState.renderScale || 1;
+    ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+
+    // Clear canvas (logical extents cover the entire backing store)
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     
     // Apply screen shake offset to the whole scene
